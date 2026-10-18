@@ -1,5 +1,5 @@
 import React from 'react';
-import { RegistrationFormData, PROGRAM_DATA, formatRupiah, maskNik } from '../types';
+import { RegistrationFormData, PROGRAM_DATA, formatRupiah, maskNik, formatDateToDDMMYYYY } from '../types';
 import {
   ClipboardList,
   Edit3,
@@ -9,6 +9,7 @@ import {
   Briefcase,
   ShieldCheck,
   CalendarClock,
+  Calendar,
   Coins,
   Camera,
   MessageCircle
@@ -81,6 +82,17 @@ export const RegistrationSummary: React.FC<Props> = ({
           </span>
           <span className="font-mono font-bold text-slate-800 text-sm tracking-wide">
             {formData.nik ? maskNik(formData.nik) : <em className="text-slate-400 font-normal">Belum diisi</em>}
+          </span>
+        </div>
+
+        {/* Tempat & Tanggal Lahir */}
+        <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
+          <span className="text-slate-400 text-xs block mb-1 flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5" /> Tempat, Tanggal Lahir
+          </span>
+          <span className="font-bold text-slate-800 text-sm">
+            {formData.tempatLahir ? `${formData.tempatLahir}, ` : ''}
+            {formData.tanggalLahir ? formatDateToDDMMYYYY(formData.tanggalLahir) : <em className="text-slate-400 font-normal">Belum diisi</em>}
           </span>
         </div>
 

@@ -14,7 +14,7 @@ import { RegistrationSummary } from './components/RegistrationSummary';
 import { WhatsAppSubmitModal } from './components/WhatsAppSubmitModal';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { FaqSection } from './components/FaqSection';
-import { RegistrationFormData, WA_TARGET_NUMBER } from './types';
+import { RegistrationFormData, WA_TARGET_NUMBER, parseDDMMYYYY } from './types';
 import {
   Loader2,
   AlertCircle,
@@ -93,14 +93,18 @@ export default function App() {
       newErrors.tempatLahir = 'Tempat lahir wajib diisi.';
     }
 
-    // 5. Tanggal Lahir
-    if (!formData.tanggalLahir) {
+    // 5. Tanggal Lahir (dd/mm/yyyy)
+    if (!formData.tanggalLahir.trim()) {
       newErrors.tanggalLahir = 'Tanggal lahir wajib diisi.';
     } else {
-      const birth = new Date(formData.tanggalLahir);
+      const birth = parseDDMMYYYY(formData.tanggalLahir);
       const today = new Date();
-      if (birth >= today) {
-        newErrors.tanggalLahir = 'Tanggal lahir tidak valid.';
+      if (!birth || isNaN(birth.getTime())) {
+        newErrors.tanggalLahir = 'Format tanggal lahir harus dd/mm/yyyy (Contoh: 17/08/1990).';
+      } else if (birth >= today) {
+        newErrors.tanggalLahir = 'Tanggal lahir tidak boleh di masa depan.';
+      } else if (today.getFullYear() - birth.getFullYear() > 105) {
+        newErrors.tanggalLahir = 'Mohon periksa kembali tahun lahir Anda.';
       }
     }
 

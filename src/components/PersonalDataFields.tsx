@@ -1,5 +1,5 @@
-import React from 'react';
-import { RegistrationFormData } from '../types';
+import React, { useRef } from 'react';
+import { RegistrationFormData, parseDDMMYYYY, formatDateToDDMMYYYY } from '../types';
 import { User, CreditCard, Home, MapPin, Calendar, Phone, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -15,6 +15,8 @@ export const PersonalDataFields: React.FC<Props> = ({
   onChange,
   onClearError
 }) => {
+  const hiddenDateInputRef = React.useRef<HTMLInputElement>(null);
+
   const handleNikChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Only allow numbers and max 16 digits
     const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 16);
@@ -29,11 +31,38 @@ export const PersonalDataFields: React.FC<Props> = ({
     if (errors.nomorHp) onClearError('nomorHp');
   };
 
+  // Handle dd/mm/yyyy formatted text input with automatic slashes
+  const handleDateTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let input = e.target.value.replace(/[^\d/]/g, '');
+    
+    // Auto-insert slash after day and month if user is just typing numbers
+    const digitsOnly = input.replace(/\D/g, '').slice(0, 8);
+    if (digitsOnly.length > 4) {
+      input = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4)}`;
+    } else if (digitsOnly.length > 2) {
+      input = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
+    } else {
+      input = digitsOnly;
+    }
+
+    onChange('tanggalLahir', input);
+    if (errors.tanggalLahir) onClearError('tanggalLahir');
+  };
+
+  // Handle calendar picker selection (returns YYYY-MM-DD -> convert to DD/MM/YYYY)
+  const handleNativeDatePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.value) {
+      const formatted = formatDateToDDMMYYYY(e.target.value);
+      onChange('tanggalLahir', formatted);
+      if (errors.tanggalLahir) onClearError('tanggalLahir');
+    }
+  };
+
   // Calculate age helper if tanggalLahir is filled
   const getAgeText = (dateString: string) => {
     if (!dateString) return null;
-    const birthDate = new Date(dateString);
-    if (isNaN(birthDate.getTime())) return null;
+    const birthDate = parseDDMMYYYY(dateString);
+    if (!birthDate || isNaN(birthDate.getTime())) return null;
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
@@ -184,7 +213,7 @@ export const PersonalDataFields: React.FC<Props> = ({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-xs sm:text-sm font-semibold text-slate-700">
-              Tanggal Lahir <span className="text-red-500">*</span>
+              Tanggal Lahir (dd/mm/yyyy) <span className="text-red-500">*</span>
             </label>
             {ageText && (
               <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
@@ -197,24 +226,53 @@ export const PersonalDataFields: React.FC<Props> = ({
               <Calendar className="w-4 h-4" />
             </div>
             <input
-              type="date"
-              max={new Date().toISOString().split('T')[0]}
+              type="text"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="dd/mm/yyyy (Contoh: 17/08/1990)"
               value={formData.tanggalLahir}
-              onChange={(e) => {
-                onChange('tanggalLahir', e.target.value);
-                if (errors.tanggalLahir) onClearError('tanggalLahir');
-              }}
-              className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm bg-white border rounded-xl shadow-xs transition-all focus:outline-none ${
+              onChange={handleDateTextChange}
+              className={`w-full pl-10 pr-11 py-2.5 sm:py-3 text-sm font-mono tracking-wider bg-white border rounded-xl shadow-xs transition-all focus:outline-none ${
                 errors.tanggalLahir
                   ? 'border-red-400 ring-2 ring-red-100 focus:border-red-500'
                   : 'border-slate-300 focus:border-[#003366] focus:ring-2 focus:ring-[#003366]/10'
               }`}
             />
+            {/* Native calendar picker trigger button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (hiddenDateInputRef.current) {
+                  if (typeof (hiddenDateInputRef.current as any).showPicker === 'function') {
+                    (hiddenDateInputRef.current as any).showPicker();
+                  } else {
+                    hiddenDateInputRef.current.click();
+                  }
+                }
+              }}
+              title="Pilih dari Kalender"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-[#003366] transition-colors cursor-pointer"
+            >
+              <Calendar className="w-4 h-4" />
+            </button>
+            {/* Hidden native date input for calendar UI */}
+            <input
+              ref={hiddenDateInputRef}
+              type="date"
+              max={new Date().toISOString().split('T')[0]}
+              className="sr-only"
+              tabIndex={-1}
+              onChange={handleNativeDatePicked}
+            />
           </div>
-          {errors.tanggalLahir && (
+          {errors.tanggalLahir ? (
             <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               {errors.tanggalLahir}
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] text-slate-500">
+              Ketik dengan format <span className="font-semibold text-slate-700">dd/mm/yyyy</span> atau klik ikon kalender.
             </p>
           )}
         </div>

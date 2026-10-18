@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { RegistrationFormData, PROGRAM_DATA, formatRupiah, WA_TARGET_INTERNATIONAL, WA_TARGET_NUMBER } from '../types';
+import {
+  RegistrationFormData,
+  PROGRAM_DATA,
+  formatRupiah,
+  formatDateToDDMMYYYY,
+  WA_TARGET_INTERNATIONAL,
+  WA_TARGET_NUMBER
+} from '../types';
 import {
   Send,
   CheckCircle,
@@ -44,30 +51,11 @@ export const WhatsAppSubmitModal: React.FC<Props> = ({
     return formData.pekerjaan || '-';
   };
 
-  // Format date to Indonesian human readable
-  const formatTanggalIndo = (dateStr: string) => {
-    if (!dateStr) return '-';
-    try {
-      const parts = dateStr.split('-');
-      if (parts.length === 3) {
-        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-        return d.toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        });
-      }
-      return dateStr;
-    } catch {
-      return dateStr;
-    }
-  };
-
-  // Build exact formatted WhatsApp message including explicit requirement to send KTP & KK photos
+  // Build exact formatted WhatsApp message with dd/mm/yyyy date format
   const buildWhatsAppMessage = (): string => {
     const jobText = getJobString();
     const emailText = formData.email.trim() ? formData.email.trim() : 'Tidak diisi';
-    const tglLahirText = formatTanggalIndo(formData.tanggalLahir);
+    const tglLahirText = formatDateToDDMMYYYY(formData.tanggalLahir) || '-';
 
     return (
 `Halo, saya ingin mendaftar BPJS Ketenagakerjaan BPU.
