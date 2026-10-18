@@ -1,0 +1,6 @@
+{
+  "name": "Pendaftaran BPJS Ketenagakerjaan BPU",
+  "description": "Formulir pendaftaran resmi calon peserta BPJS Ketenagakerjaan Bukan Penerima Upah (BPU) dengan integrasi pengiriman WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
