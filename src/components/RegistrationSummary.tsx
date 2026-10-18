@@ -10,9 +10,8 @@ import {
   ShieldCheck,
   CalendarClock,
   Coins,
-  FileCheck2,
-  FileX2,
-  CheckCircle2
+  Camera,
+  MessageCircle
 } from 'lucide-react';
 
 interface Props {
@@ -146,68 +145,17 @@ export const RegistrationSummary: React.FC<Props> = ({
           </span>
         </div>
 
-        {/* Status Dokumen KTP */}
-        <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs flex items-center justify-between">
-          <div>
-            <span className="text-slate-400 text-xs block mb-0.5">Status Foto KTP:</span>
-            <div className="flex items-center gap-1.5">
-              {formData.ktpFile ? (
-                <>
-                  <FileCheck2 className="w-4 h-4 text-emerald-600" />
-                  <span className="font-bold text-emerald-700 text-xs">Siap Dilampirkan</span>
-                </>
-              ) : (
-                <>
-                  <FileX2 className="w-4 h-4 text-red-500" />
-                  <span className="font-semibold text-red-600 text-xs">Belum diunggah</span>
-                </>
-              )}
-            </div>
-            {formData.ktpFileName && (
-              <span className="text-[10px] text-slate-400 block truncate max-w-[170px] mt-0.5">
-                {formData.ktpFileName}
-              </span>
-            )}
+        {/* Petunjuk Pengiriman Dokumen KTP & KK via WhatsApp */}
+        <div className="sm:col-span-2 p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
+          <Camera className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-bold text-amber-950 block">
+              Pengiriman Dokumen Persyaratan (KTP & KK):
+            </span>
+            <p className="text-amber-800 leading-relaxed">
+              Anda tidak perlu mengunggah foto di website ini. Silakan kirimkan foto fisik e-KTP dan Kartu Keluarga (KK) Anda langsung melalui chat WhatsApp petugas setelah pesan formulir pendaftaran ini terkirim.
+            </p>
           </div>
-          {formData.ktpPreview && (
-            <img
-              src={formData.ktpPreview}
-              alt="Thumbnail KTP"
-              className="w-10 h-10 object-cover rounded-lg border border-slate-200 shrink-0"
-            />
-          )}
-        </div>
-
-        {/* Status Dokumen KK */}
-        <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs flex items-center justify-between">
-          <div>
-            <span className="text-slate-400 text-xs block mb-0.5">Status Foto Kartu Keluarga (KK):</span>
-            <div className="flex items-center gap-1.5">
-              {formData.kkFile ? (
-                <>
-                  <FileCheck2 className="w-4 h-4 text-emerald-600" />
-                  <span className="font-bold text-emerald-700 text-xs">Siap Dilampirkan</span>
-                </>
-              ) : (
-                <>
-                  <FileX2 className="w-4 h-4 text-red-500" />
-                  <span className="font-semibold text-red-600 text-xs">Belum diunggah</span>
-                </>
-              )}
-            </div>
-            {formData.kkFileName && (
-              <span className="text-[10px] text-slate-400 block truncate max-w-[170px] mt-0.5">
-                {formData.kkFileName}
-              </span>
-            )}
-          </div>
-          {formData.kkPreview && (
-            <img
-              src={formData.kkPreview}
-              alt="Thumbnail KK"
-              className="w-10 h-10 object-cover rounded-lg border border-slate-200 shrink-0"
-            />
-          )}
         </div>
       </div>
     </div>

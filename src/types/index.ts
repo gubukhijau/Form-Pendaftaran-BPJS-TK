@@ -21,17 +21,6 @@ export interface RegistrationFormData {
   program: ProgramType | '';
   periodePembayaran: PaymentPeriod | 0;
 
-  // Dokumen
-  ktpFile: File | null;
-  ktpPreview: string | null;
-  ktpFileName: string;
-  ktpFileSize: string;
-
-  kkFile: File | null;
-  kkPreview: string | null;
-  kkFileName: string;
-  kkFileSize: string;
-
   // Pernyataan
   pernyataanData: boolean;
   pernyataanKesehatan: boolean;

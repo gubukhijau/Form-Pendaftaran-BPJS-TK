@@ -14,8 +14,8 @@ export const FaqSection: React.FC = () => {
       a: 'Program JKK + JKM (Rp16.800/bulan) memberikan perlindungan asuransi terhadap risiko kecelakaan kerja dan santunan kematian. Program JKK + JKM + JHT (Rp36.800/bulan) mencakup perlindungan kecelakaan kerja, kematian, plus tabungan Jaminan Hari Tua (JHT) yang dapat dicairkan di masa mendatang dengan imbal hasil investasi.'
     },
     {
-      q: 'Mengapa foto KTP dan KK harus dilampirkan secara manual di WhatsApp?',
-      a: 'Sesuai dengan protokol teknis dan privasi WhatsApp Click-to-Chat (wa.me), file gambar tidak diizinkan untuk dikirimkan secara otomatis lewat URL web browser. Oleh sebab itu, formulir ini menyiapkan teks data secara otomatis dan Anda cukup melampirkan foto KTP & KK yang sudah disiapkan ke dalam ruang obrolan WhatsApp petugas.'
+      q: 'Bagaimana cara mengirimkan foto KTP dan KK?',
+      a: 'Anda tidak perlu mengunggah foto di website ini. Cukup isi data diri di formulir, lalu tekan tombol "Kirim Pendaftaran via WhatsApp". Setelah WhatsApp terbuka dan pesan pendaftaran terkirim, Anda dapat langsung melampirkan foto e-KTP dan Kartu Keluarga (KK) ke obrolan WhatsApp petugas kami (085743678786).'
     },
     {
       q: 'Bagaimana cara pembayaran iuran untuk bulan-bulan berikutnya?',

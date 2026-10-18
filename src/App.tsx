@@ -9,22 +9,16 @@ import { PersonalDataFields } from './components/PersonalDataFields';
 import { JobSelector } from './components/JobSelector';
 import { ProgramSelector } from './components/ProgramSelector';
 import { PaymentPeriodSelector } from './components/PaymentPeriodSelector';
-import { DocumentUploader } from './components/DocumentUploader';
 import { StatementSection } from './components/StatementSection';
 import { RegistrationSummary } from './components/RegistrationSummary';
 import { WhatsAppSubmitModal } from './components/WhatsAppSubmitModal';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { FaqSection } from './components/FaqSection';
-import { RegistrationFormData, WA_TARGET_NUMBER, WA_TARGET_INTERNATIONAL } from './types';
+import { RegistrationFormData, WA_TARGET_NUMBER } from './types';
 import {
-  Send,
   Loader2,
   AlertCircle,
-  ShieldCheck,
-  CheckCircle,
-  HelpCircle,
-  Sparkles,
-  PhoneCall
+  Sparkles
 } from 'lucide-react';
 
 const initialFormData: RegistrationFormData = {
@@ -40,14 +34,6 @@ const initialFormData: RegistrationFormData = {
   detailPekerjaanLain: '',
   program: '',
   periodePembayaran: 0,
-  ktpFile: null,
-  ktpPreview: null,
-  ktpFileName: '',
-  ktpFileSize: '',
-  kkFile: null,
-  kkPreview: null,
-  kkFileName: '',
-  kkFileSize: '',
   pernyataanData: false,
   pernyataanKesehatan: false
 };
@@ -155,22 +141,12 @@ export default function App() {
       newErrors.periodePembayaran = 'Periode pembayaran wajib dipilih.';
     }
 
-    // 11. Foto KTP
-    if (!formData.ktpFile || !formData.ktpPreview) {
-      newErrors.ktp = 'Foto KTP wajib diunggah.';
-    }
-
-    // 12. Foto KK
-    if (!formData.kkFile || !formData.kkPreview) {
-      newErrors.kk = 'Foto Kartu Keluarga (KK) wajib diunggah.';
-    }
-
-    // 13. Pernyataan Data
+    // 11. Pernyataan Data
     if (!formData.pernyataanData) {
       newErrors.pernyataanData = 'Anda wajib menyetujui pernyataan kebenaran data.';
     }
 
-    // 14. Pernyataan Kesehatan
+    // 12. Pernyataan Kesehatan
     if (!formData.pernyataanKesehatan) {
       newErrors.pernyataanKesehatan = 'Anda wajib menyatakan bahwa saat ini dalam kondisi sehat dan aktif bekerja.';
     }
@@ -206,7 +182,7 @@ export default function App() {
       if (isValid) {
         setIsModalOpen(true);
       }
-    }, 400);
+    }, 350);
   };
 
   const handleEditSection = () => {
@@ -289,15 +265,7 @@ export default function App() {
               onClearError={handleClearError}
             />
 
-            {/* Section 5: Upload KTP & KK */}
-            <DocumentUploader
-              formData={formData}
-              errors={errors}
-              onChange={handleFieldChange}
-              onClearError={handleClearError}
-            />
-
-            {/* Section 6: Pernyataan Peserta */}
+            {/* Section 5: Pernyataan Peserta */}
             <StatementSection
               formData={formData}
               errors={errors}
@@ -305,7 +273,7 @@ export default function App() {
               onClearError={handleClearError}
             />
 
-            {/* Section 7: Ringkasan Sebelum Submit */}
+            {/* Section 6: Ringkasan Sebelum Submit */}
             <RegistrationSummary
               formData={formData}
               onEditSection={handleEditSection}
@@ -339,7 +307,7 @@ export default function App() {
               </button>
 
               <p className="text-xs text-slate-500 text-center max-w-md">
-                Pesan pendaftaran otomatis terbuka di WhatsApp nomor <span className="font-semibold text-slate-700">{WA_TARGET_NUMBER}</span>. Pastikan Anda menekan tombol kirim dan melampirkan foto KTP & KK.
+                Pesan formulir pendaftaran akan terbuka otomatis di WhatsApp nomor <span className="font-semibold text-slate-700">{WA_TARGET_NUMBER}</span>. Kirimkan pesan tersebut beserta foto fisik KTP & KK Anda di ruang obrolan.
               </p>
             </div>
           </form>
@@ -365,7 +333,7 @@ export default function App() {
           Formulir Pengajuan Kepesertaan Mandiri BPJS Ketenagakerjaan BPU
         </p>
         <p className="max-w-xl mx-auto text-slate-400 text-[11px] leading-relaxed">
-          Penyedia formulir bantuan pendaftaran pekerja bukan penerima upah untuk perlindungan JKK, JKM, dan JHT. Teks pesan pendaftaran dan dokumen diteruskan ke nomor layanan WhatsApp 085743678786.
+          Penyedia formulir bantuan pendaftaran pekerja bukan penerima upah untuk perlindungan JKK, JKM, dan JHT. Teks pesan pendaftaran diteruskan ke nomor layanan WhatsApp 085743678786.
         </p>
         <p className="text-slate-500 text-[10px] pt-2">
           &copy; {new Date().getFullYear()} Formulir Pendaftaran BPJS Ketenagakerjaan BPU. Seluruh Hak Cipta Dilindungi.

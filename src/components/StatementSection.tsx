@@ -20,7 +20,7 @@ export const StatementSection: React.FC<Props> = ({
       <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-sky-100 text-[#003366] flex items-center justify-center font-bold text-sm">
-            6
+            5
           </div>
           <h2 className="text-lg font-bold text-slate-900 tracking-tight">
             Pernyataan Peserta & Kondisi Kesehatan
