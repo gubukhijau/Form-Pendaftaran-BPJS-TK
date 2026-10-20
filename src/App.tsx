@@ -14,11 +14,16 @@ import { RegistrationSummary } from './components/RegistrationSummary';
 import { WhatsAppSubmitModal } from './components/WhatsAppSubmitModal';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { FaqSection } from './components/FaqSection';
+import { AdminPage } from './components/AdminPage';
+import { ParticipantDirectoryPage } from './components/ParticipantDirectoryPage';
+import { saveRegistrant } from './services/registrantStorage';
 import { RegistrationFormData, WA_TARGET_NUMBER, parseDDMMYYYY } from './types';
 import {
   Loader2,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Users,
+  UserCheck
 } from 'lucide-react';
 
 const initialFormData: RegistrationFormData = {
@@ -39,6 +44,7 @@ const initialFormData: RegistrationFormData = {
 };
 
 export default function App() {
+  const [currentView, setCurrentView] = useState<'form' | 'admin' | 'participants'>('form');
   const [formData, setFormData] = useState<RegistrationFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -184,6 +190,13 @@ export default function App() {
       const isValid = validateForm();
       setIsSubmitting(false);
       if (isValid) {
+        // Record applicant into admin registrant storage
+        saveRegistrant({
+          namaLengkap: formData.namaLengkap.trim(),
+          alamat: formData.alamatRumah.trim(),
+          noHp: formData.nomorHp.trim(),
+          dokumen: 'Belum Terlampir'
+        });
         setIsModalOpen(true);
       }
     }, 350);
@@ -195,10 +208,31 @@ export default function App() {
     }
   };
 
+  if (currentView === 'admin') {
+    return (
+      <AdminPage
+        onBackToForm={() => setCurrentView('form')}
+        onOpenParticipants={() => setCurrentView('participants')}
+      />
+    );
+  }
+
+  if (currentView === 'participants') {
+    return (
+      <ParticipantDirectoryPage
+        onBackToForm={() => setCurrentView('form')}
+        onOpenAdmin={() => setCurrentView('admin')}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100/80 flex flex-col selection:bg-emerald-500 selection:text-white">
       {/* Header Banner */}
-      <Header />
+      <Header
+        onOpenAdmin={() => setCurrentView('admin')}
+        onOpenParticipants={() => setCurrentView('participants')}
+      />
 
       {/* Main Container - Mobile First Card */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-6 -mt-8 pb-16 relative z-10">
@@ -332,14 +366,32 @@ export default function App() {
       />
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 text-xs py-8 px-4 border-t border-slate-800 text-center space-y-2">
+      <footer className="bg-slate-900 text-slate-400 text-xs py-8 px-4 border-t border-slate-800 text-center space-y-3">
         <p className="text-slate-300 font-semibold">
           Formulir Pengajuan Kepesertaan Mandiri BPJS Ketenagakerjaan BPU
         </p>
         <p className="max-w-xl mx-auto text-slate-400 text-[11px] leading-relaxed">
           Penyedia formulir bantuan pendaftaran pekerja bukan penerima upah untuk perlindungan JKK, JKM, dan JHT. Teks pesan pendaftaran diteruskan ke nomor layanan WhatsApp 085743678786.
         </p>
-        <p className="text-slate-500 text-[10px] pt-2">
+        <div className="pt-1 flex flex-wrap items-center justify-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setCurrentView('participants')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold transition-colors border border-slate-700 cursor-pointer"
+          >
+            <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Lihat Data Peserta</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentView('admin')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold transition-colors border border-slate-700 cursor-pointer"
+          >
+            <Users className="w-3.5 h-3.5 text-amber-400" />
+            <span>Halaman Admin Pencatatan</span>
+          </button>
+        </div>
+        <p className="text-slate-500 text-[10px] pt-1">
           &copy; {new Date().getFullYear()} Formulir Pendaftaran BPJS Ketenagakerjaan BPU. Seluruh Hak Cipta Dilindungi.
         </p>
       </footer>

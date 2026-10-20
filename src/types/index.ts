@@ -2,6 +2,25 @@ export type ProgramType = 'JKK_JKM' | 'JKK_JKM_JHT';
 export type JobType = 'Pedagang' | 'Tukang' | 'Lain-lain';
 export type PaymentPeriod = 1 | 2 | 3 | 6 | 12;
 
+export type DocumentStatus = 'Terlampir' | 'Belum Terlampir';
+
+export interface AdminRegistrant {
+  id: string;
+  namaLengkap: string;
+  alamat: string;
+  noHp: string;
+  dokumen: DocumentStatus;
+  createdAt?: string;
+}
+
+export interface SupabaseConfig {
+  url: string;
+  anonKey: string;
+  tableName: string;
+  isEnabled: boolean;
+  lastSyncedAt?: string;
+}
+
 export interface RegistrationFormData {
   // Data Peserta
   namaLengkap: string;
@@ -94,6 +113,16 @@ export function maskNik(nik: string): string {
   const last4 = clean.slice(-4);
   const maskedCount = Math.max(clean.length - 8, 4);
   return `${first4} ${'•'.repeat(maskedCount)} ${last4}`;
+}
+
+export function maskPhoneNumber(phone: string): string {
+  if (!phone) return '-';
+  const clean = phone.replace(/[^\d+]/g, '');
+  if (clean.length < 8) return clean;
+  // Sensor 4 digit di tengah, misal: 0812 •••• 7890
+  const start = clean.slice(0, 4);
+  const end = clean.slice(-4);
+  return `${start} •••• ${end}`;
 }
 
 export function formatDateToDDMMYYYY(dateStr: string): string {
