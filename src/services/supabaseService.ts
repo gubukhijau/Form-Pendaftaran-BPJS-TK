@@ -62,10 +62,141 @@ export function getSupabaseClient(): SupabaseClient | null {
 
   try {
     const client = createClient(config.url.trim(), config.anonKey.trim(), {
-      auth: { persistSession: false }
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
     });
     cachedClient = { url: config.url, key: config.anonKey, client };
     return client;
+  } catch {
+    return null;
+  }
+}
+
+export interface SupabaseAuthResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  user?: any;
+  session?: any;
+}
+
+export async function signInWithSupabaseAuth(
+  email: string,
+  password: string
+): Promise<SupabaseAuthResult> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return {
+      success: false,
+      error: 'Supabase belum dikonfigurasi atau belum diaktifkan. Silakan buka Pengaturan Supabase terlebih dahulu.'
+    };
+  }
+
+  try {
+    const { data, error } = await client.auth.signInWithPassword({
+      email: email.trim(),
+      password
+    });
+
+    if (error) {
+      let msg = error.message;
+      if (error.message.includes('Invalid login credentials')) {
+        msg = 'Email atau password salah di Supabase Auth. Jika akun ini belum didaftarkan di proyek Supabase Anda, klik "Daftarkan Akun Ini".';
+      } else if (error.message.includes('Email not confirmed')) {
+        msg = 'Email belum dikonfirmasi di Supabase. Anda dapat menonaktifkan "Confirm email" di Dashboard Supabase > Authentication > Providers > Email.';
+      }
+      return {
+        success: false,
+        error: msg
+      };
+    }
+
+    return {
+      success: true,
+      user: data.user,
+      session: data.session,
+      message: 'Login Supabase Auth berhasil!'
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Terjadi gangguan saat menghubungi Supabase Auth.'
+    };
+  }
+}
+
+export async function signUpWithSupabaseAuth(
+  email: string,
+  password: string
+): Promise<SupabaseAuthResult> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return {
+      success: false,
+      error: 'Supabase belum dikonfigurasi. Silakan atur URL dan Anon Key terlebih dahulu.'
+    };
+  }
+
+  try {
+    const { data, error } = await client.auth.signUp({
+      email: email.trim(),
+      password
+    });
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      user: data.user,
+      session: data.session,
+      message: data.session
+        ? 'Pendaftaran akun Supabase berhasil dan sesi login langsung aktif!'
+        : 'Pendaftaran akun Supabase berhasil! Silakan coba login sekarang atau periksa verifikasi email jika diaktifkan di Supabase.'
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Gagal mendaftarkan akun di Supabase.'
+    };
+  }
+}
+
+export async function signOutSupabaseAuth(): Promise<void> {
+  try {
+    const client = getSupabaseClient();
+    if (client) {
+      await client.auth.signOut();
+    }
+  } catch (err) {
+    console.warn('Sign out error:', err);
+  }
+}
+
+export async function getCurrentSupabaseUser(): Promise<any | null> {
+  try {
+    const client = getSupabaseClient();
+    if (!client) return null;
+    const { data } = await client.auth.getUser();
+    return data?.user || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getCurrentSupabaseSession(): Promise<any | null> {
+  try {
+    const client = getSupabaseClient();
+    if (!client) return null;
+    const { data } = await client.auth.getSession();
+    return data?.session || null;
   } catch {
     return null;
   }

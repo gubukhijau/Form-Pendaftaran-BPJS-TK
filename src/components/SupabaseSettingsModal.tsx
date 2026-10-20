@@ -332,6 +332,20 @@ create policy "Akses Publik Pendaftar BPJS" on ${currentTableName}
                 Nama tabel database (default: <code>pendaftar_bpjs_bpu</code>).
               </span>
             </div>
+
+            {/* Supabase Auth Info Card */}
+            <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-900 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <span>Supabase Auth Terintegrasi</span>
+                  <span className="text-[10px] px-1.5 py-0.2 bg-emerald-200 text-emerald-800 rounded-full font-semibold">Aktif</span>
+                </p>
+                <p className="text-[11px] text-emerald-800 leading-relaxed">
+                  Login Admin menggunakan akun email <strong>cs.sapalewa@gmail.com</strong> dan password <strong>SAPALEWA</strong>. Pastikan provider Email di menu <em>Authentication &rarr; Providers</em> di Supabase Anda aktif. Jika belum terdaftar, Anda dapat mendaftarkan akun tersebut langsung dengan sekali klik di formulir login admin!
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* SQL Table Creation Helper */}

@@ -7,7 +7,13 @@ import {
   saveRegistrant,
   fetchAndSyncRegistrants
 } from '../services/registrantStorage';
-import { getSupabaseConfig } from '../services/supabaseService';
+import {
+  getSupabaseConfig,
+  signInWithSupabaseAuth,
+  signUpWithSupabaseAuth,
+  signOutSupabaseAuth,
+  getCurrentSupabaseSession
+} from '../services/supabaseService';
 import { SupabaseSettingsModal } from './SupabaseSettingsModal';
 import {
   Users,
@@ -33,7 +39,12 @@ import {
   Database,
   RefreshCw,
   Cloud,
-  Loader2
+  Loader2,
+  Mail,
+  LogOut,
+  ShieldCheck,
+  Sparkles,
+  Info
 } from 'lucide-react';
 
 interface Props {
@@ -42,6 +53,7 @@ interface Props {
 }
 
 const ADMIN_SECRET_KEY = 'SAPALEWA';
+const DEFAULT_ADMIN_EMAIL = 'cs.sapalewa@gmail.com';
 
 export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants }) => {
   // Authentication lock state
@@ -52,9 +64,52 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants })
       return false;
     }
   });
-  const [inputKey, setInputKey] = useState('');
+
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('bpjs_admin_email') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  // Supabase Auth credentials state (kosongkan secara default agar tidak terlihat)
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
   const [showKeyText, setShowKeyText] = useState(false);
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
+
+  // Fitur Rahasia: Sembunyikan tombol Setting dan Daftar Akun (hanya admin yang tahu cara membukanya)
+  const [showSecretControls, setShowSecretControls] = useState(false);
+  const [secretClickCount, setSecretClickCount] = useState(0);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Shortcut rahasia: Alt + S atau Ctrl + Shift + S
+      if ((e.altKey && (e.key === 's' || e.key === 'S')) || (e.ctrlKey && e.shiftKey && (e.key === 's' || e.key === 'S'))) {
+        e.preventDefault();
+        setShowSecretControls((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleSecretLogoClick = () => {
+    const nextCount = secretClickCount + 1;
+    if (nextCount >= 3) {
+      setShowSecretControls((prev) => !prev);
+      setSecretClickCount(0);
+    } else {
+      setSecretClickCount(nextCount);
+      setTimeout(() => {
+        setSecretClickCount(0);
+      }, 2500);
+    }
+  };
 
   const [registrants, setRegistrants] = useState<AdminRegistrant[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,6 +126,28 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants })
   const [newNoHp, setNewNoHp] = useState('');
   const [newDokumen, setNewDokumen] = useState<DocumentStatus>('Belum Terlampir');
   const [formError, setFormError] = useState('');
+
+  // Check active Supabase session on mount
+  useEffect(() => {
+    const checkActiveSession = async () => {
+      try {
+        const session = await getCurrentSupabaseSession();
+        if (session?.user) {
+          setIsAuthenticated(true);
+          const email = session.user.email || DEFAULT_ADMIN_EMAIL;
+          setCurrentUserEmail(email);
+          try {
+            sessionStorage.setItem('bpjs_admin_unlocked', 'true');
+            sessionStorage.setItem('bpjs_admin_email', email);
+          } catch {}
+        }
+      } catch (err) {
+        console.warn('Error checking supabase session:', err);
+      }
+    };
+    checkActiveSession();
+  }, []);
+
   const loadData = async () => {
     setIsSyncingCloud(true);
     try {
@@ -90,30 +167,121 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants })
     }
   }, [isAuthenticated]);
 
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputKey.trim().toUpperCase() === ADMIN_SECRET_KEY) {
-      setIsAuthenticated(true);
-      setAuthError('');
-      try {
-        sessionStorage.setItem('bpjs_admin_unlocked', 'true');
-      } catch {
-        // Ignore storage error
+    setAuthError('');
+    setAuthSuccess('');
+
+    const trimmedEmail = authEmail.trim();
+    if (!trimmedEmail) {
+      setAuthError('Email administrator wajib diisi.');
+      return;
+    }
+    if (!authPassword) {
+      setAuthError('Password administrator wajib diisi.');
+      return;
+    }
+
+    setIsSubmittingAuth(true);
+
+    try {
+      const cfg = getSupabaseConfig();
+      if (cfg.isEnabled && cfg.url && cfg.anonKey) {
+        // Attempt Supabase Auth login
+        const res = await signInWithSupabaseAuth(trimmedEmail, authPassword);
+        if (res.success) {
+          setIsAuthenticated(true);
+          const loggedEmail = res.user?.email || trimmedEmail;
+          setCurrentUserEmail(loggedEmail);
+          try {
+            sessionStorage.setItem('bpjs_admin_unlocked', 'true');
+            sessionStorage.setItem('bpjs_admin_email', loggedEmail);
+          } catch {}
+          setAuthSuccess('Berhasil login via Supabase Auth!');
+          return;
+        } else {
+          // Display error from Supabase
+          setAuthError(res.error || 'Email atau password salah di Supabase Auth.');
+        }
+      } else {
+        // Supabase belum dihubungkan / diatur
+        if (
+          (trimmedEmail.toLowerCase() === DEFAULT_ADMIN_EMAIL.toLowerCase() && authPassword === ADMIN_SECRET_KEY) ||
+          authPassword === ADMIN_SECRET_KEY
+        ) {
+          setIsAuthenticated(true);
+          setCurrentUserEmail(trimmedEmail || DEFAULT_ADMIN_EMAIL);
+          try {
+            sessionStorage.setItem('bpjs_admin_unlocked', 'true');
+            sessionStorage.setItem('bpjs_admin_email', trimmedEmail || DEFAULT_ADMIN_EMAIL);
+          } catch {}
+          return;
+        } else {
+          setAuthError('Email atau password tidak sesuai. Pastikan Anda memasukkan akun administrator yang benar.');
+        }
       }
-    } else {
-      setAuthError('Kunci akses salah! Pastikan Anda memasukkan kunci yang benar.');
+    } catch (err: any) {
+      setAuthError(err?.message || 'Terjadi kesalahan sistem saat mencoba login.');
+    } finally {
+      setIsSubmittingAuth(false);
     }
   };
 
-  const handleLockAdmin = () => {
-    setIsAuthenticated(false);
-    setInputKey('');
+  const handleSignUpWithSupabase = async () => {
     setAuthError('');
+    setAuthSuccess('');
+
+    const cfg = getSupabaseConfig();
+    if (!cfg.isEnabled || !cfg.url || !cfg.anonKey) {
+      setAuthError('Supabase belum terhubung. Silakan atur URL dan Anon Key di tombol "Setting Supabase" di bawah terlebih dahulu.');
+      return;
+    }
+
+    const trimmedEmail = authEmail.trim();
+    if (!trimmedEmail || !authPassword) {
+      setAuthError('Email dan password wajib diisi untuk pendaftaran akun.');
+      return;
+    }
+
+    setIsSigningUp(true);
+    try {
+      const res = await signUpWithSupabaseAuth(trimmedEmail, authPassword);
+      if (res.success) {
+        if (res.session?.user) {
+          setIsAuthenticated(true);
+          const loggedEmail = res.user?.email || trimmedEmail;
+          setCurrentUserEmail(loggedEmail);
+          try {
+            sessionStorage.setItem('bpjs_admin_unlocked', 'true');
+            sessionStorage.setItem('bpjs_admin_email', loggedEmail);
+          } catch {}
+          setAuthSuccess('Pendaftaran berhasil dan Anda langsung masuk!');
+        } else {
+          setAuthSuccess(res.message || 'Akun berhasil didaftarkan di Supabase Auth! Silakan coba klik tombol "Masuk via Supabase Auth".');
+        }
+      } else {
+        setAuthError(res.error || 'Gagal mendaftarkan akun di Supabase.');
+      }
+    } catch (err: any) {
+      setAuthError(err?.message || 'Terjadi gangguan saat mendaftarkan akun.');
+    } finally {
+      setIsSigningUp(false);
+    }
+  };
+
+  const handleLockAdmin = async () => {
+    try {
+      await signOutSupabaseAuth();
+    } catch (err) {
+      console.warn('Sign out error:', err);
+    }
+    setIsAuthenticated(false);
+    setAuthError('');
+    setAuthSuccess('');
     try {
       sessionStorage.removeItem('bpjs_admin_unlocked');
-    } catch {
-      // Ignore storage error
-    }
+      sessionStorage.removeItem('bpjs_admin_email');
+    } catch {}
   };
 
   const handleStatusChange = (id: string, newStatus: DocumentStatus) => {
@@ -194,76 +362,176 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants })
     document.body.removeChild(link);
   };
 
-  // Locked View (Require Security Key "SAPALEWA")
+  // Locked View (Supabase Auth Login: cs.sapalewa@gmail.com / SAPALEWA)
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
         <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scaleUp">
           {/* Top Header */}
-          <div className="bg-gradient-to-r from-[#003366] via-[#0b4870] to-[#007b5e] p-6 text-white text-center relative">
-            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-emerald-300 shadow-inner">
-              <Lock className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-extrabold tracking-tight">Halaman Admin Terkunci</h2>
+          <div className="bg-gradient-to-r from-[#003366] via-[#0b4870] to-[#007b5e] p-6 text-white text-center relative select-none">
+            <button
+              type="button"
+              onClick={handleSecretLogoClick}
+              title="Kunci Administrator"
+              aria-label="Kunci Administrator"
+              className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-emerald-300 shadow-inner cursor-pointer active:scale-95 transition-transform"
+            >
+              <Cloud className="w-8 h-8" />
+            </button>
+            <h2 className="text-xl font-extrabold tracking-tight">Kunci Akses Administrator</h2>
             <p className="text-xs text-emerald-100 mt-1">
               Khusus pengelola data pendaftaran BPJS Ketenagakerjaan BPU
             </p>
+            {showSecretControls && (
+              <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-400 text-slate-900 shadow-xs animate-fadeIn">
+                <span>Pengaturan Rahasia Terbuka</span>
+                <button
+                  type="button"
+                  onClick={() => setShowSecretControls(false)}
+                  className="ml-1 text-slate-800 hover:text-black font-extrabold text-[11px] cursor-pointer"
+                  title="Sembunyikan kembali"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Form Body */}
           <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
-            <p className="text-xs sm:text-sm text-slate-600 text-center leading-relaxed">
-              Halaman ini dilindungi kunci keamanan. Masukkan kunci akses untuk membuka data catatan pendaftar.
-            </p>
-
-            {authError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2 animate-shake">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{authError}</span>
+            {/* Supabase status badge & Setting button - Disembunyikan (Hanya tampil jika mode rahasia aktif) */}
+            {showSecretControls && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${supabaseConfig.isEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
+                  <span className="font-semibold text-slate-700">
+                    {supabaseConfig.isEnabled ? 'Supabase Auth Cloud Aktif' : 'Supabase Belum Dihubungkan'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="text-[11px] font-bold text-[#003366] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Database className="w-3 h-3 text-emerald-600" />
+                  <span>Setting</span>
+                </button>
               </div>
             )}
 
+            {authError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start gap-2 animate-shake">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold">Gagal Masuk</p>
+                  <p className="text-[11px] mt-0.5 leading-relaxed">{authError}</p>
+                </div>
+              </div>
+            )}
+
+            {authSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{authSuccess}</span>
+              </div>
+            )}
+
+            {/* Email Field */}
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Kunci Keamanan Akses
+                Email Administrator
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <KeyRound className="w-4 h-4" />
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input
+                  type="email"
+                  autoFocus
+                  required
+                  value={authEmail}
+                  onChange={(e) => {
+                    setAuthEmail(e.target.value);
+                    if (authError) setAuthError('');
+                  }}
+                  placeholder="admin@email.com"
+                  className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366] focus:bg-white transition-all text-slate-800 font-medium"
+                />
+              </div>
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Password Administrator
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Lock className="w-4 h-4" />
                 </div>
                 <input
                   type={showKeyText ? 'text' : 'password'}
-                  autoFocus
-                  value={inputKey}
+                  required
+                  value={authPassword}
                   onChange={(e) => {
-                    setInputKey(e.target.value);
+                    setAuthPassword(e.target.value);
                     if (authError) setAuthError('');
                   }}
-                  placeholder="Masukkan kunci keamanan..."
-                  className="w-full pl-10 pr-10 py-3 text-sm font-mono tracking-widest bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366] focus:bg-white transition-all uppercase"
+                  placeholder="Masukkan password..."
+                  className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366] focus:bg-white transition-all text-slate-800"
                 />
                 <button
                   type="button"
                   onClick={() => setShowKeyText(!showKeyText)}
                   className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
-                  title={showKeyText ? 'Sembunyikan Kunci' : 'Tampilkan Kunci'}
+                  title={showKeyText ? 'Sembunyikan Password' : 'Tampilkan Password'}
                 >
                   {showKeyText ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1.5">
-                Masukkan kunci akses resmi untuk melanjutkan.
-              </p>
             </div>
 
             <div className="pt-2 space-y-2">
               <button
                 type="submit"
-                className="w-full py-3 bg-[#003366] hover:bg-[#002244] active:scale-[0.99] text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isSubmittingAuth || isSigningUp}
+                className="w-full py-3 bg-[#003366] hover:bg-[#002244] active:scale-[0.99] disabled:opacity-60 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <KeyRound className="w-4 h-4" />
-                <span>Buka Akses Admin</span>
+                {isSubmittingAuth ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Memverifikasi Akun...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4" />
+                    <span>{showSecretControls ? 'Masuk via Supabase Auth' : 'Masuk Administrator'}</span>
+                  </>
+                )}
               </button>
+
+              {/* Tombol Sign Up disembunyikan - hanya muncul jika mode rahasia aktif */}
+              {showSecretControls && supabaseConfig.isEnabled && (
+                <button
+                  type="button"
+                  onClick={handleSignUpWithSupabase}
+                  disabled={isSubmittingAuth || isSigningUp}
+                  className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer animate-fadeIn"
+                  title="Daftarkan akun administrator ke Supabase jika belum terdaftar"
+                >
+                  {isSigningUp ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                      <span>Mendaftarkan ke Supabase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Daftarkan Akun Ini ke Supabase (Sign Up)</span>
+                    </>
+                  )}
+                </button>
+              )}
 
               <button
                 type="button"
@@ -276,6 +544,20 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants })
             </div>
           </form>
         </div>
+
+        {/* Modal Pengaturan Supabase (Bisa diakses langsung dari halaman Login) */}
+        <SupabaseSettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => {
+            setIsSettingsOpen(false);
+            setSupabaseConfig(getSupabaseConfig());
+          }}
+          localRegistrants={getRegistrants()}
+          onConfigSaved={() => {
+            setSupabaseConfig(getSupabaseConfig());
+            setAuthError('');
+          }}
+        />
       </div>
     );
   }
@@ -324,11 +606,21 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants })
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-xl border border-white/20 text-xs">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+                <span className="text-emerald-100 font-medium max-w-[190px] truncate" title={currentUserEmail}>
+                  {currentUserEmail}
+                </span>
+                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-400/20 text-emerald-200 rounded border border-emerald-400/30">
+                  {supabaseConfig.isEnabled ? 'Supabase Auth' : 'Admin'}
+                </span>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(true)}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white/15 hover:bg-white/25 active:bg-white/30 text-white rounded-xl text-xs sm:text-sm font-bold shadow-sm transition-all border border-emerald-300/40 cursor-pointer"
-                title="Pengaturan Koneksi Supabase Database"
+                title="Pengaturan Koneksi Supabase Database & Auth"
               >
                 <Database className="w-4 h-4 text-emerald-300" />
                 <span>Setting Supabase</span>
@@ -369,11 +661,11 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants })
               <button
                 type="button"
                 onClick={handleLockAdmin}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-500/20 hover:bg-red-500/35 text-red-200 hover:text-white rounded-xl text-xs sm:text-sm font-semibold transition-colors border border-red-400/30 ml-1 cursor-pointer"
-                title="Kunci Akses Admin Kembali"
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-500/20 hover:bg-red-500/35 active:bg-red-500/40 text-red-200 hover:text-white rounded-xl text-xs sm:text-sm font-semibold transition-colors border border-red-400/30 ml-1 cursor-pointer"
+                title="Keluar dari sesi Supabase Auth & Kunci Admin"
               >
-                <Lock className="w-4 h-4" />
-                <span className="hidden sm:inline">Kunci Akses</span>
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Keluar (Logout)</span>
               </button>
             </div>
           </div>
