@@ -3,10 +3,9 @@ import { ShieldCheck, UserCheck, MessageSquare, Clock, PhoneCall, ShieldAlert, U
 
 interface Props {
   onOpenAdmin?: () => void;
-  onOpenParticipants?: () => void;
 }
 
-export const Header: React.FC<Props> = ({ onOpenAdmin, onOpenParticipants }) => {
+export const Header: React.FC<Props> = ({ onOpenAdmin }) => {
   return (
     <header className="relative overflow-hidden bg-gradient-to-br from-[#003366] via-[#0b4870] to-[#007b5e] text-white pt-8 pb-14 px-4 sm:px-6 shadow-lg">
       {/* Decorative background grid and blurs */}
@@ -23,17 +22,6 @@ export const Header: React.FC<Props> = ({ onOpenAdmin, onOpenParticipants }) => 
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {onOpenParticipants && (
-              <button
-                type="button"
-                onClick={onOpenParticipants}
-                className="inline-flex items-center gap-1.5 text-xs text-white bg-white/15 hover:bg-white/25 active:bg-white/30 transition-all px-3 py-1.5 rounded-full border border-white/30 font-bold cursor-pointer shadow-xs"
-                title="Lihat data peserta yang sudah diinput admin"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Data Peserta</span>
-              </button>
-            )}
 
             {onOpenAdmin && (
               <button

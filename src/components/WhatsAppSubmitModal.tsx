@@ -77,7 +77,7 @@ Periode pembayaran: ${formData.periodePembayaran} Bulan
 Estimasi total iuran: ${formatRupiah(totalIuran)}
 
 DOKUMEN PERSYARATAN
-*Catatan: Foto KTP dan Kartu Keluarga (KK) akan saya kirimkan langsung di chat WhatsApp ini.*
+*Catatan: Foto KTP Asli, Foto KK Asli, dan Foto diri terbaru (selfi) akan saya kirimkan langsung di chat WhatsApp ini.*
 
 PERNYATAAN
 Peserta menyatakan data yang diisi benar dan menyetujui pernyataan pendaftaran.
@@ -136,7 +136,7 @@ Mohon informasi mengenai proses selanjutnya. Terima kasih.`
               <Camera className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
                 <h4 className="font-bold text-emerald-950">
-                  Langkah Wajib: Kirim Foto KTP & KK di Chat WhatsApp
+                  Langkah Wajib: Kirim Dokumen Persyaratan di Chat WhatsApp
                 </h4>
                 <p className="text-xs text-emerald-800 leading-relaxed mt-1">
                   1. Tekan tombol hijau <strong>&ldquo;Buka WhatsApp Sekarang&rdquo;</strong> di bawah. Pesan data formulir Anda akan otomatis terisi di ruang obrolan.
@@ -145,7 +145,7 @@ Mohon informasi mengenai proses selanjutnya. Terima kasih.`
                   2. <strong>Tekan tombol Kirim (Send)</strong> di WhatsApp.
                 </p>
                 <p className="text-xs text-emerald-800 leading-relaxed mt-1 font-semibold">
-                  3. Lampirkan <u>Foto KTP</u> dan <u>Foto Kartu Keluarga (KK)</u> Anda langsung ke ruang obrolan WhatsApp petugas untuk verifikasi data kepesertaan.
+                  3. Lampirkan <u>Foto KTP Asli</u>, <u>Foto KK Asli</u>, dan <u>Foto diri terbaru (selfi)</u> Anda langsung ke ruang obrolan WhatsApp petugas untuk verifikasi data kepesertaan.
                 </p>
               </div>
             </div>
@@ -191,7 +191,7 @@ Mohon informasi mengenai proses selanjutnya. Terima kasih.`
                 WhatsApp Sedang Dibuka
               </div>
               <p>
-                Setelah menekan tombol <strong>Kirim</strong> di chat WhatsApp, jangan lupa untuk melampirkan foto KTP dan Kartu Keluarga Anda ke nomor <strong>{WA_TARGET_NUMBER}</strong> agar pendaftaran segera diproses.
+                Setelah menekan tombol <strong>Kirim</strong> di chat WhatsApp, jangan lupa untuk melampirkan <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong> Anda ke nomor <strong>{WA_TARGET_NUMBER}</strong> agar pendaftaran segera diproses.
               </p>
             </div>
           )}

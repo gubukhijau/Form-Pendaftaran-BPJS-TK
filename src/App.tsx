@@ -15,7 +15,6 @@ import { WhatsAppSubmitModal } from './components/WhatsAppSubmitModal';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { FaqSection } from './components/FaqSection';
 import { AdminPage } from './components/AdminPage';
-import { ParticipantDirectoryPage } from './components/ParticipantDirectoryPage';
 import { saveRegistrant } from './services/registrantStorage';
 import { syncSupabaseConfigFromServer } from './services/supabaseService';
 import { RegistrationFormData, WA_TARGET_NUMBER, parseDDMMYYYY } from './types';
@@ -23,8 +22,7 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
-  Users,
-  UserCheck
+  Users
 } from 'lucide-react';
 
 const initialFormData: RegistrationFormData = {
@@ -45,7 +43,7 @@ const initialFormData: RegistrationFormData = {
 };
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'form' | 'admin' | 'participants'>('form');
+  const [currentView, setCurrentView] = useState<'form' | 'admin'>('form');
   const [formData, setFormData] = useState<RegistrationFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -217,16 +215,6 @@ export default function App() {
     return (
       <AdminPage
         onBackToForm={() => setCurrentView('form')}
-        onOpenParticipants={() => setCurrentView('participants')}
-      />
-    );
-  }
-
-  if (currentView === 'participants') {
-    return (
-      <ParticipantDirectoryPage
-        onBackToForm={() => setCurrentView('form')}
-        onOpenAdmin={() => setCurrentView('admin')}
       />
     );
   }
@@ -236,7 +224,6 @@ export default function App() {
       {/* Header Banner */}
       <Header
         onOpenAdmin={() => setCurrentView('admin')}
-        onOpenParticipants={() => setCurrentView('participants')}
       />
 
       {/* Main Container - Mobile First Card */}
@@ -350,7 +337,7 @@ export default function App() {
               </button>
 
               <p className="text-xs text-slate-500 text-center max-w-md">
-                Pesan formulir pendaftaran akan terbuka otomatis di WhatsApp nomor <span className="font-semibold text-slate-700">{WA_TARGET_NUMBER}</span>. Kirimkan pesan tersebut beserta foto fisik KTP & KK Anda di ruang obrolan.
+                Pesan formulir pendaftaran akan terbuka otomatis di WhatsApp nomor <span className="font-semibold text-slate-700">{WA_TARGET_NUMBER}</span>. Kirimkan pesan tersebut beserta <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong> Anda di ruang obrolan.
               </p>
             </div>
           </form>
@@ -379,14 +366,6 @@ export default function App() {
           Penyedia formulir bantuan pendaftaran pekerja bukan penerima upah untuk perlindungan JKK, JKM, dan JHT. Teks pesan pendaftaran diteruskan ke nomor layanan WhatsApp 085743678786.
         </p>
         <div className="pt-1 flex flex-wrap items-center justify-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setCurrentView('participants')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold transition-colors border border-slate-700 cursor-pointer"
-          >
-            <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Lihat Data Peserta</span>
-          </button>
           <button
             type="button"
             onClick={() => setCurrentView('admin')}

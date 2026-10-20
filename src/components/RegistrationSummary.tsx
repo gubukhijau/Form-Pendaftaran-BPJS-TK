@@ -157,16 +157,30 @@ export const RegistrationSummary: React.FC<Props> = ({
           </span>
         </div>
 
-        {/* Petunjuk Pengiriman Dokumen KTP & KK via WhatsApp */}
+        {/* Petunjuk Pengiriman Dokumen Persyaratan via WhatsApp */}
         <div className="sm:col-span-2 p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
           <Camera className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
+          <div className="space-y-1.5 w-full">
             <span className="font-bold text-amber-950 block">
-              Pengiriman Dokumen Persyaratan (KTP & KK):
+              Pengiriman Dokumen Persyaratan:
             </span>
             <p className="text-amber-800 leading-relaxed">
-              Anda tidak perlu mengunggah foto di website ini. Silakan kirimkan foto fisik e-KTP dan Kartu Keluarga (KK) Anda langsung melalui chat WhatsApp petugas setelah pesan formulir pendaftaran ini terkirim.
+              Anda tidak perlu mengunggah foto di website ini. Silakan kirimkan dokumen persyaratan berupa <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong> Anda langsung melalui chat WhatsApp petugas setelah pesan formulir pendaftaran ini terkirim.
             </p>
+            <div className="pt-1 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100/80 border border-amber-300/80 text-amber-900 font-bold text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                Foto KTP Asli
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100/80 border border-amber-300/80 text-amber-900 font-bold text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                Foto KK Asli
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100/80 border border-amber-300/80 text-amber-900 font-bold text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                Foto diri terbaru (selfi)
+              </span>
+            </div>
           </div>
         </div>
       </div>

@@ -49,13 +49,12 @@ import {
 
 interface Props {
   onBackToForm: () => void;
-  onOpenParticipants?: () => void;
 }
 
 const ADMIN_SECRET_KEY = 'SAPALEWA';
 const DEFAULT_ADMIN_EMAIL = 'cs.sapalewa@gmail.com';
 
-export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants }) => {
+export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
   // Authentication lock state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     try {
@@ -579,18 +578,6 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm, onOpenParticipants })
                 <ArrowLeft className="w-4 h-4" />
                 <span>Formulir</span>
               </button>
-
-              {onOpenParticipants && (
-                <button
-                  type="button"
-                  onClick={onOpenParticipants}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs sm:text-sm font-semibold text-white transition-colors"
-                  title="Lihat Halaman Data Peserta Publik"
-                >
-                  <UserCheck className="w-4 h-4 text-emerald-300" />
-                  <span className="hidden sm:inline">Data Peserta</span>
-                </button>
-              )}
 
               <div className="h-6 w-px bg-white/20 hidden sm:block" />
 
