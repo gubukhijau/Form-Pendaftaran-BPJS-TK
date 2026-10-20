@@ -43,6 +43,46 @@ export function saveSupabaseConfig(config: SupabaseConfig): void {
   } catch {
     // Ignore
   }
+
+  // Also sync to server so all visitors on any device can access Supabase data
+  try {
+    fetch('/api/supabase-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    }).catch(() => {
+      // Ignore background error
+    });
+  } catch {
+    // Ignore
+  }
+}
+
+export async function syncSupabaseConfigFromServer(): Promise<SupabaseConfig> {
+  try {
+    const res = await fetch('/api/supabase-config');
+    if (res.ok) {
+      const serverConfig = await res.json();
+      if (serverConfig && serverConfig.url && serverConfig.anonKey) {
+        const local = getSupabaseConfig();
+        const merged: SupabaseConfig = {
+          url: serverConfig.url || local.url,
+          anonKey: serverConfig.anonKey || local.anonKey,
+          tableName: serverConfig.tableName || local.tableName || DEFAULT_TABLE_NAME,
+          isEnabled: Boolean(serverConfig.isEnabled !== false && serverConfig.url && serverConfig.anonKey),
+          lastSyncedAt: serverConfig.lastSyncedAt || local.lastSyncedAt
+        };
+        try {
+          localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify(merged));
+          cachedClient = null;
+        } catch {}
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not sync config from server:', err);
+  }
+  return getSupabaseConfig();
 }
 
 export function getSupabaseClient(): SupabaseClient | null {
@@ -254,37 +294,54 @@ export async function testSupabaseConnection(configToTest?: SupabaseConfig): Pro
 }
 
 export async function fetchRegistrantsFromSupabase(): Promise<AdminRegistrant[] | null> {
-  const client = getSupabaseClient();
-  if (!client) return null;
-
-  const config = getSupabaseConfig();
-  const targetTable = config.tableName || DEFAULT_TABLE_NAME;
-
-  try {
-    const { data, error } = await client
-      .from(targetTable)
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.warn('Supabase fetch error:', error.message);
-      return null;
-    }
-
-    if (!Array.isArray(data)) return [];
-
-    return data.map((row: any) => ({
-      id: String(row.id || `REG-${Date.now()}`),
-      namaLengkap: String(row.nama_lengkap || row.namaLengkap || '-'),
-      alamat: String(row.alamat || '-'),
-      noHp: String(row.no_hp || row.noHp || '-'),
-      dokumen: (row.dokumen === 'Terlampir' ? 'Terlampir' : 'Belum Terlampir') as DocumentStatus,
-      createdAt: row.created_at || row.createdAt || new Date().toISOString()
-    }));
-  } catch (err) {
-    console.warn('Supabase network error:', err);
-    return null;
+  let client = getSupabaseClient();
+  if (!client) {
+    // Try syncing config from server first in case another device configured it
+    await syncSupabaseConfigFromServer();
+    client = getSupabaseClient();
   }
+
+  if (client) {
+    const config = getSupabaseConfig();
+    const targetTable = config.tableName || DEFAULT_TABLE_NAME;
+
+    try {
+      const { data, error } = await client
+        .from(targetTable)
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        return data.map((row: any) => ({
+          id: String(row.id || `REG-${Date.now()}`),
+          namaLengkap: String(row.nama_lengkap || row.namaLengkap || '-'),
+          alamat: String(row.alamat || '-'),
+          noHp: String(row.no_hp || row.noHp || '-'),
+          dokumen: (row.dokumen === 'Terlampir' ? 'Terlampir' : 'Belum Terlampir') as DocumentStatus,
+          createdAt: row.created_at || row.createdAt || new Date().toISOString()
+        }));
+      } else if (error) {
+        console.warn('Supabase fetch error, trying server API fallback:', error.message);
+      }
+    } catch (err) {
+      console.warn('Supabase network error, trying server API fallback:', err);
+    }
+  }
+
+  // Fallback to server endpoint /api/registrants
+  try {
+    const resp = await fetch('/api/registrants');
+    if (resp.ok) {
+      const json = await resp.json();
+      if (json && json.success && json.source === 'supabase' && Array.isArray(json.data)) {
+        return json.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Server API registrants fallback error:', err);
+  }
+
+  return null;
 }
 
 export async function insertRegistrantToSupabase(

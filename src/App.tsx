@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Header } from './components/Header';
 import { PersonalDataFields } from './components/PersonalDataFields';
 import { JobSelector } from './components/JobSelector';
@@ -17,6 +17,7 @@ import { FaqSection } from './components/FaqSection';
 import { AdminPage } from './components/AdminPage';
 import { ParticipantDirectoryPage } from './components/ParticipantDirectoryPage';
 import { saveRegistrant } from './services/registrantStorage';
+import { syncSupabaseConfigFromServer } from './services/supabaseService';
 import { RegistrationFormData, WA_TARGET_NUMBER, parseDDMMYYYY } from './types';
 import {
   Loader2,
@@ -53,6 +54,10 @@ export default function App() {
 
   const formRef = useRef<HTMLDivElement>(null);
   const personalDataRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    syncSupabaseConfigFromServer();
+  }, []);
 
   const handleFieldChange = <K extends keyof RegistrationFormData>(
     field: K,

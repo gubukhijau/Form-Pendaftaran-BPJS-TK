@@ -74,17 +74,14 @@ export async function fetchAndSyncRegistrants(): Promise<{
   data: AdminRegistrant[];
   source: 'supabase' | 'local';
 }> {
-  const cfg = getSupabaseConfig();
-  if (cfg.isEnabled && cfg.url && cfg.anonKey) {
-    try {
-      const remoteData = await fetchRegistrantsFromSupabase();
-      if (remoteData !== null) {
-        setLocalRegistrants(remoteData);
-        return { data: remoteData, source: 'supabase' };
-      }
-    } catch (err) {
-      console.warn('Failed to fetch from Supabase, fallback to local', err);
+  try {
+    const remoteData = await fetchRegistrantsFromSupabase();
+    if (remoteData !== null) {
+      setLocalRegistrants(remoteData);
+      return { data: remoteData, source: 'supabase' };
     }
+  } catch (err) {
+    console.warn('Failed to fetch from Supabase, fallback to local', err);
   }
   return { data: getLocalRegistrants(), source: 'local' };
 }
