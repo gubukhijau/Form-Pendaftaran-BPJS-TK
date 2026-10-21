@@ -655,12 +655,8 @@ export const DataPesertaSection: React.FC<Props> = ({
                       {/* 3. No Hp (Disensor demi privasi seluruh peserta) */}
                       <td className="py-3.5 px-4 sm:px-6 align-top">
                         <div className="inline-flex items-center gap-1.5 flex-wrap">
-                          <a
-                            href={`https://wa.me/${row.noHp.replace(/\D/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Halo ${row.namaLengkap}, terkait pendaftaran BPJS Ketenagakerjaan BPU...`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 font-mono font-semibold text-[#003366] hover:text-emerald-700 hover:underline"
-                            title="Hubungi pendaftar via WhatsApp"
+                          <div
+                            className="inline-flex items-center gap-1.5 font-mono font-semibold text-slate-700 cursor-default select-text"
                           >
                             <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             <span
@@ -672,7 +668,7 @@ export const DataPesertaSection: React.FC<Props> = ({
                             >
                               {isMasked ? maskPhoneNumber(row.noHp) : row.noHp}
                             </span>
-                          </a>
+                          </div>
 
                           {isAdminLoggedIn && (
                             <button
