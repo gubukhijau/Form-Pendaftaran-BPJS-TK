@@ -15,8 +15,8 @@ interface Props {
   onOpenAdmin?: () => void;
   isAdminLoggedIn?: boolean;
   adminEmail?: string;
-  currentView?: 'form' | 'admin';
-  onNavigate?: (view: 'form' | 'admin') => void;
+  currentView?: 'form' | 'peserta' | 'admin';
+  onNavigate?: (view: 'form' | 'peserta') => void;
   onLogout?: () => void;
 }
 
@@ -44,7 +44,7 @@ export const Header: React.FC<Props> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Menu Navigasi: Formulir & Data Peserta */}
+            {/* Menu Navigasi: Formulir & Data Peserta (Bisa dilihat semua orang) */}
             <div className="inline-flex items-center bg-black/25 backdrop-blur-md p-1 rounded-full border border-white/20 shadow-xs">
               <button
                 type="button"
@@ -63,33 +63,21 @@ export const Header: React.FC<Props> = ({
                 type="button"
                 onClick={() => {
                   if (onNavigate) {
-                    onNavigate('admin');
+                    onNavigate('peserta');
                   } else if (onOpenAdmin) {
                     onOpenAdmin();
                   }
                 }}
                 className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full font-bold transition-all cursor-pointer ${
-                  currentView === 'admin'
+                  currentView === 'peserta' || currentView === 'admin'
                     ? 'bg-emerald-500 text-white shadow-sm ring-2 ring-white/30'
-                    : isAdminLoggedIn
-                    ? 'bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-100 border border-emerald-400/40'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                    : 'text-white/90 hover:text-white hover:bg-white/10'
                 }`}
-                title={
-                  isAdminLoggedIn
-                    ? 'Buka Menu Data Peserta (Admin Terautentikasi)'
-                    : 'Menu Data Peserta (Muncul saat admin login)'
-                }
+                title="Buka Data Peserta (Terbuka untuk Umum)"
               >
                 <Users className="w-3.5 h-3.5 text-amber-300" />
                 <span>Data Peserta</span>
-                {isAdminLoggedIn ? (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Admin Aktif" />
-                ) : (
-                  <span title="Diperlukan Login Admin">
-                    <Lock className="w-3 h-3 text-white/60 ml-0.5" />
-                  </span>
-                )}
+                <span className="w-2 h-2 rounded-full bg-emerald-400" title="Terbuka untuk Umum" />
               </button>
             </div>
 

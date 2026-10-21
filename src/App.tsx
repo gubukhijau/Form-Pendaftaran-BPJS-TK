@@ -14,7 +14,7 @@ import { RegistrationSummary } from './components/RegistrationSummary';
 import { WhatsAppSubmitModal } from './components/WhatsAppSubmitModal';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { FaqSection } from './components/FaqSection';
-import { AdminPage } from './components/AdminPage';
+import { DataPesertaSection } from './components/DataPesertaSection';
 import { saveRegistrant } from './services/registrantStorage';
 import { syncSupabaseConfigFromServer, getCurrentSupabaseSession, signOutSupabaseAuth } from './services/supabaseService';
 import { RegistrationFormData, WA_TARGET_NUMBER, parseDDMMYYYY } from './types';
@@ -22,7 +22,8 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
-  Users
+  Users,
+  FileText
 } from 'lucide-react';
 
 const initialFormData: RegistrationFormData = {
@@ -43,7 +44,7 @@ const initialFormData: RegistrationFormData = {
 };
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'form' | 'admin'>('form');
+  const [currentView, setCurrentView] = useState<'form' | 'peserta'>('form');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem('bpjs_admin_unlocked') === 'true';
@@ -255,153 +256,232 @@ export default function App() {
     }
   };
 
-  if (currentView === 'admin') {
-    return (
-      <AdminPage
-        onBackToForm={() => setCurrentView('form')}
-        isAdminLoggedIn={isAdminLoggedIn}
-        onLoginSuccess={(email) => {
-          setIsAdminLoggedIn(true);
-          setAdminEmail(email);
-        }}
-        onLogout={handleAdminLogout}
-      />
-    );
-  }
+
 
   return (
     <div className="min-h-screen bg-slate-100/80 flex flex-col selection:bg-emerald-500 selection:text-white">
       {/* Header Banner with Navigation Menu */}
       <Header
         currentView={currentView}
-        onNavigate={(view) => setCurrentView(view)}
+        onNavigate={(view) => {
+          setCurrentView(view);
+          if (view === 'peserta') {
+            setTimeout(() => {
+              const el = document.getElementById('data-peserta');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 60);
+          }
+        }}
         isAdminLoggedIn={isAdminLoggedIn}
         adminEmail={adminEmail}
         onLogout={handleAdminLogout}
       />
 
       {/* Main Container - Mobile First Card */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-6 -mt-8 pb-16 relative z-10">
-        {/* Main Card */}
-        <div
-          ref={formRef}
-          className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200/80 overflow-hidden"
-        >
-          {/* Progress / Step Pill Bar */}
-          <div className="bg-slate-50 border-b border-slate-100 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-            <div className="flex items-center gap-1.5 font-semibold text-slate-700">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span>Formulir Pendaftaran Calon Peserta BPU</span>
-            </div>
-            <div className="text-[11px] text-slate-500">
-              WhatsApp Layanan: <strong className="text-slate-700">{WA_TARGET_NUMBER}</strong>
-            </div>
-          </div>
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 -mt-8 pb-16 relative z-10 space-y-8">
+        {/* Top View Switcher Tabs on Main Page */}
+        <div className="flex items-center justify-center">
+          <div className="inline-flex p-1.5 bg-white/95 backdrop-blur-md rounded-2xl shadow-lg shadow-slate-200/80 border border-slate-200/90 gap-1.5 text-xs sm:text-sm font-bold">
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentView('form');
+                if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl transition-all cursor-pointer ${
+                currentView === 'form'
+                  ? 'bg-[#003366] text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-emerald-400" />
+              <span>Formulir Pendaftaran</span>
+            </button>
 
-          {/* Form Content */}
-          <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-8 sm:space-y-10">
-            {/* General Error Banner if submission had errors */}
-            {generalError && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 animate-shake">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <h4 className="text-xs sm:text-sm font-bold text-red-800">
-                    Perhatian: Formulir Belum Lengkap
-                  </h4>
-                  <p className="text-xs text-red-700 leading-relaxed">
-                    {generalError}
-                  </p>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentView('peserta');
+                setTimeout(() => {
+                  const el = document.getElementById('data-peserta');
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 60);
+              }}
+              className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl transition-all cursor-pointer ${
+                currentView === 'peserta'
+                  ? 'bg-[#003366] text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Users className="w-4 h-4 text-amber-400" />
+              <span>Data Peserta</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                Semua Orang
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* View 1: Formulir Pendaftaran */}
+        {currentView === 'form' ? (
+          <>
+            {/* Main Form Card */}
+            <div
+              ref={formRef}
+              className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200/80 overflow-hidden"
+            >
+              {/* Progress / Step Pill Bar */}
+              <div className="bg-slate-50 border-b border-slate-100 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                <div className="flex items-center gap-1.5 font-semibold text-slate-700">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  <span>Formulir Pendaftaran Calon Peserta BPU</span>
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  WhatsApp Layanan: <strong className="text-slate-700">{WA_TARGET_NUMBER}</strong>
                 </div>
               </div>
-            )}
 
-            {/* Section 1: Data Diri */}
-            <div ref={personalDataRef} id="personal-data">
-              <PersonalDataFields
-                formData={formData}
-                errors={errors}
-                onChange={handleFieldChange}
-                onClearError={handleClearError}
+              {/* Form Content */}
+              <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-8 sm:space-y-10">
+                {/* General Error Banner if submission had errors */}
+                {generalError && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 animate-shake">
+                    <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="text-xs sm:text-sm font-bold text-red-800">
+                        Perhatian: Formulir Belum Lengkap
+                      </h4>
+                      <p className="text-xs text-red-700 leading-relaxed">
+                        {generalError}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Section 1: Data Diri */}
+                <div ref={personalDataRef} id="personal-data">
+                  <PersonalDataFields
+                    formData={formData}
+                    errors={errors}
+                    onChange={handleFieldChange}
+                    onClearError={handleClearError}
+                  />
+                </div>
+
+                {/* Section 2: Pilihan Pekerjaan */}
+                <JobSelector
+                  formData={formData}
+                  errors={errors}
+                  onChange={handleFieldChange}
+                  onClearError={handleClearError}
+                />
+
+                {/* Section 3: Pilihan Program BPJS */}
+                <ProgramSelector
+                  formData={formData}
+                  errors={errors}
+                  onChange={handleFieldChange}
+                  onClearError={handleClearError}
+                />
+
+                {/* Section 4: Periode Pembayaran & Kalkulator */}
+                <PaymentPeriodSelector
+                  formData={formData}
+                  errors={errors}
+                  onChange={handleFieldChange}
+                  onClearError={handleClearError}
+                />
+
+                {/* Section 5: Pernyataan Peserta */}
+                <StatementSection
+                  formData={formData}
+                  errors={errors}
+                  onChange={handleFieldChange}
+                  onClearError={handleClearError}
+                />
+
+                {/* Section 6: Ringkasan Sebelum Submit */}
+                <RegistrationSummary
+                  formData={formData}
+                  onEditSection={handleEditSection}
+                />
+
+                {/* Submit Action Area */}
+                <div className="pt-4 border-t border-slate-100 flex flex-col items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto min-w-[280px] inline-flex items-center justify-center gap-3 px-8 py-4 bg-[#25D366] hover:bg-[#1ebc57] active:bg-[#189b47] disabled:bg-slate-300 text-white font-extrabold text-base sm:text-lg rounded-2xl shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Memproses Formulir...</span>
+                      </>
+                    ) : (
+                      <>
+                        {/* Authentic WhatsApp SVG Icon */}
+                        <svg
+                          className="w-6 h-6 fill-current"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                        </svg>
+                        <span>Kirim Pendaftaran via WhatsApp</span>
+                      </>
+                    )}
+                  </button>
+
+                  <p className="text-xs text-slate-500 text-center max-w-md">
+                    Pesan formulir pendaftaran akan terbuka otomatis di WhatsApp nomor <span className="font-semibold text-slate-700">{WA_TARGET_NUMBER}</span>. Kirimkan pesan tersebut beserta <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong> Anda di ruang obrolan.
+                  </p>
+                </div>
+              </form>
+            </div>
+
+            {/* Informational Sub-sections */}
+            <div className="space-y-6">
+              <PrivacyNotice />
+              <FaqSection />
+            </div>
+
+            {/* Embedded Data Peserta on Homepage */}
+            <div className="pt-4">
+              <div className="bg-gradient-to-r from-slate-200 via-emerald-200 to-slate-200 h-px w-full my-6" />
+              <DataPesertaSection
+                isAdminLoggedIn={isAdminLoggedIn}
+                adminEmail={adminEmail}
+                onLoginSuccess={(email) => {
+                  setIsAdminLoggedIn(true);
+                  setAdminEmail(email);
+                }}
+                onLogout={handleAdminLogout}
+                onSwitchToForm={() => {
+                  setCurrentView('form');
+                  if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth' });
+                }}
               />
             </div>
-
-            {/* Section 2: Pilihan Pekerjaan */}
-            <JobSelector
-              formData={formData}
-              errors={errors}
-              onChange={handleFieldChange}
-              onClearError={handleClearError}
+          </>
+        ) : (
+          /* View 2: Data Peserta Full View directly on Main Page */
+          <div className="space-y-6">
+            <DataPesertaSection
+              isAdminLoggedIn={isAdminLoggedIn}
+              adminEmail={adminEmail}
+              onLoginSuccess={(email) => {
+                setIsAdminLoggedIn(true);
+                setAdminEmail(email);
+              }}
+              onLogout={handleAdminLogout}
+              onSwitchToForm={() => {
+                setCurrentView('form');
+                if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth' });
+              }}
             />
-
-            {/* Section 3: Pilihan Program BPJS */}
-            <ProgramSelector
-              formData={formData}
-              errors={errors}
-              onChange={handleFieldChange}
-              onClearError={handleClearError}
-            />
-
-            {/* Section 4: Periode Pembayaran & Kalkulator */}
-            <PaymentPeriodSelector
-              formData={formData}
-              errors={errors}
-              onChange={handleFieldChange}
-              onClearError={handleClearError}
-            />
-
-            {/* Section 5: Pernyataan Peserta */}
-            <StatementSection
-              formData={formData}
-              errors={errors}
-              onChange={handleFieldChange}
-              onClearError={handleClearError}
-            />
-
-            {/* Section 6: Ringkasan Sebelum Submit */}
-            <RegistrationSummary
-              formData={formData}
-              onEditSection={handleEditSection}
-            />
-
-            {/* Submit Action Area */}
-            <div className="pt-4 border-t border-slate-100 flex flex-col items-center gap-3">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full sm:w-auto min-w-[280px] inline-flex items-center justify-center gap-3 px-8 py-4 bg-[#25D366] hover:bg-[#1ebc57] active:bg-[#189b47] disabled:bg-slate-300 text-white font-extrabold text-base sm:text-lg rounded-2xl shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Memproses Formulir...</span>
-                  </>
-                ) : (
-                  <>
-                    {/* Authentic WhatsApp SVG Icon */}
-                    <svg
-                      className="w-6 h-6 fill-current"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                    </svg>
-                    <span>Kirim Pendaftaran via WhatsApp</span>
-                  </>
-                )}
-              </button>
-
-              <p className="text-xs text-slate-500 text-center max-w-md">
-                Pesan formulir pendaftaran akan terbuka otomatis di WhatsApp nomor <span className="font-semibold text-slate-700">{WA_TARGET_NUMBER}</span>. Kirimkan pesan tersebut beserta <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong> Anda di ruang obrolan.
-              </p>
-            </div>
-          </form>
-        </div>
-
-        {/* Informational Sub-sections */}
-        <div className="mt-8 space-y-6">
-          <PrivacyNotice />
-          <FaqSection />
-        </div>
+          </div>
+        )}
       </main>
 
       {/* Confirmation & WhatsApp Launch Modal */}
@@ -422,11 +502,14 @@ export default function App() {
         <div className="pt-1 flex flex-wrap items-center justify-center gap-2.5">
           <button
             type="button"
-            onClick={() => setCurrentView('admin')}
+            onClick={() => {
+              setCurrentView('peserta');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold transition-colors border border-slate-700 cursor-pointer"
           >
             <Users className="w-3.5 h-3.5 text-amber-400" />
-            <span>Menu Data Peserta {isAdminLoggedIn ? '(Admin Aktif)' : '(Login Admin)'}</span>
+            <span>Data Peserta (Terbuka untuk Semua Orang)</span>
           </button>
         </div>
         <p className="text-slate-500 text-[10px] pt-1">
