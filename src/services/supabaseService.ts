@@ -3,36 +3,47 @@ import { AdminRegistrant, DocumentStatus, SupabaseConfig } from '../types';
 
 const SUPABASE_CONFIG_KEY = 'bpjs_bpu_supabase_config';
 export const DEFAULT_TABLE_NAME = 'pendaftar_bpjs_bpu';
+export const DEFAULT_SUPABASE_URL = 'https://bbjsfjrqoebafnojkmva.supabase.co';
+export const DEFAULT_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJianNmanJxb2ViYWZub2prbXZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0ODg3NDIsImV4cCI6MjEwODA2NDc0Mn0.iDS01sDXKLqgfZ3aGnhe92sqbsT9HaFGc-uVkkVEW2w';
 
 let cachedClient: { url: string; key: string; client: SupabaseClient } | null = null;
 
 export function getSupabaseConfig(): SupabaseConfig {
+  const envUrl = ((import.meta as any).env?.VITE_SUPABASE_URL || '').trim();
+  const envKey = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '').trim();
+
+  let storedUrl = '';
+  let storedKey = '';
+  let storedTable = DEFAULT_TABLE_NAME;
+  let storedEnabled = true;
+  let storedLastSyncedAt: string | undefined = undefined;
+
   try {
     const raw = localStorage.getItem(SUPABASE_CONFIG_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return {
-        url: parsed.url || '',
-        anonKey: parsed.anonKey || '',
-        tableName: parsed.tableName || DEFAULT_TABLE_NAME,
-        isEnabled: Boolean(parsed.isEnabled && parsed.url && parsed.anonKey),
-        lastSyncedAt: parsed.lastSyncedAt
-      };
+      storedUrl = (parsed.url || '').trim();
+      storedKey = (parsed.anonKey || '').trim();
+      storedTable = (parsed.tableName || DEFAULT_TABLE_NAME).trim();
+      storedEnabled = parsed.isEnabled !== false;
+      storedLastSyncedAt = parsed.lastSyncedAt;
     }
   } catch {
     // Ignore storage parse error
   }
 
-  // Check if env vars exist
-  const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-  const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+  const effectiveUrl = envUrl || storedUrl || DEFAULT_SUPABASE_URL;
+  const effectiveKey = envKey || storedKey || DEFAULT_SUPABASE_ANON_KEY;
+  const effectiveTable = storedTable || DEFAULT_TABLE_NAME;
+  const effectiveEnabled = Boolean(effectiveUrl && effectiveKey);
 
   return {
-    url: envUrl,
-    anonKey: envKey,
-    tableName: DEFAULT_TABLE_NAME,
-    isEnabled: Boolean(envUrl && envKey),
-    lastSyncedAt: undefined
+    url: effectiveUrl,
+    anonKey: effectiveKey,
+    tableName: effectiveTable,
+    isEnabled: effectiveEnabled,
+    lastSyncedAt: storedLastSyncedAt
   };
 }
 
@@ -348,28 +359,40 @@ export async function insertRegistrantToSupabase(
   entry: AdminRegistrant
 ): Promise<boolean> {
   const client = getSupabaseClient();
-  if (!client) return false;
-
   const config = getSupabaseConfig();
   const targetTable = config.tableName || DEFAULT_TABLE_NAME;
 
-  try {
-    const payload = {
-      id: entry.id,
-      nama_lengkap: entry.namaLengkap,
-      alamat: entry.alamat,
-      no_hp: entry.noHp,
-      dokumen: entry.dokumen,
-      created_at: entry.createdAt || new Date().toISOString()
-    };
+  if (client) {
+    try {
+      const payload = {
+        id: entry.id,
+        nama_lengkap: entry.namaLengkap,
+        alamat: entry.alamat,
+        no_hp: entry.noHp,
+        dokumen: entry.dokumen,
+        created_at: entry.createdAt || new Date().toISOString()
+      };
 
-    const { error } = await client.from(targetTable).upsert(payload);
-    if (error) {
-      console.warn('Supabase insert error:', error.message);
-      return false;
+      const { error } = await client.from(targetTable).upsert(payload);
+      if (!error) {
+        return true;
+      }
+      console.warn('Supabase client insert error, trying server fallback:', error.message);
+    } catch (err) {
+      console.warn('Supabase client error, trying server fallback:', err);
     }
-    return true;
-  } catch {
+  }
+
+  // Fallback to server API /api/registrants
+  try {
+    const res = await fetch('/api/registrants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Server fallback insert error:', err);
     return false;
   }
 }
@@ -379,45 +402,68 @@ export async function updateRegistrantInSupabase(
   newStatus: DocumentStatus
 ): Promise<boolean> {
   const client = getSupabaseClient();
-  if (!client) return false;
-
   const config = getSupabaseConfig();
   const targetTable = config.tableName || DEFAULT_TABLE_NAME;
 
-  try {
-    const { error } = await client
-      .from(targetTable)
-      .update({ dokumen: newStatus })
-      .eq('id', id);
+  if (client) {
+    try {
+      const { error } = await client
+        .from(targetTable)
+        .update({ dokumen: newStatus })
+        .eq('id', id);
 
-    if (error) {
-      console.warn('Supabase update error:', error.message);
-      return false;
+      if (!error) {
+        return true;
+      }
+      console.warn('Supabase client update error, trying server fallback:', error.message);
+    } catch (err) {
+      console.warn('Supabase client update error, trying server fallback:', err);
     }
-    return true;
-  } catch {
+  }
+
+  // Fallback to server API /api/registrants/:id
+  try {
+    const res = await fetch(`/api/registrants/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dokumen: newStatus })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Server fallback update error:', err);
     return false;
   }
 }
 
 export async function deleteRegistrantFromSupabase(id: string): Promise<boolean> {
   const client = getSupabaseClient();
-  if (!client) return false;
-
   const config = getSupabaseConfig();
   const targetTable = config.tableName || DEFAULT_TABLE_NAME;
 
-  try {
-    const { error } = await client.from(targetTable).delete().eq('id', id);
-    if (error) {
-      console.warn('Supabase delete error:', error.message);
-      return false;
+  if (client) {
+    try {
+      const { error } = await client.from(targetTable).delete().eq('id', id);
+      if (!error) {
+        return true;
+      }
+      console.warn('Supabase client delete error, trying server fallback:', error.message);
+    } catch (err) {
+      console.warn('Supabase client delete error, trying server fallback:', err);
     }
-    return true;
-  } catch {
+  }
+
+  // Fallback to server API /api/registrants/:id
+  try {
+    const res = await fetch(`/api/registrants/${id}`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Server fallback delete error:', err);
     return false;
   }
 }
+
 
 export async function syncAllLocalToSupabase(
   localList: AdminRegistrant[]
