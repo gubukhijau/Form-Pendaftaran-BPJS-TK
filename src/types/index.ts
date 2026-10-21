@@ -117,12 +117,15 @@ export function maskNik(nik: string): string {
 
 export function maskPhoneNumber(phone: string): string {
   if (!phone) return '-';
-  const clean = phone.replace(/[^\d+]/g, '');
-  if (clean.length < 8) return clean;
-  // Sensor 4 digit di tengah, misal: 0812 •••• 7890
+  const clean = phone.trim().replace(/[^\d+]/g, '');
+  if (clean.length < 8) {
+    if (clean.length <= 4) return '****';
+    return clean.slice(0, 2) + '****' + clean.slice(-1);
+  }
+  // Sensor digit di tengah, misal: 0812-****-7890
   const start = clean.slice(0, 4);
   const end = clean.slice(-4);
-  return `${start} •••• ${end}`;
+  return `${start}-****-${end}`;
 }
 
 export function formatDateToDDMMYYYY(dateStr: string): string {

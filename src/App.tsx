@@ -16,7 +16,7 @@ import { PrivacyNotice } from './components/PrivacyNotice';
 import { FaqSection } from './components/FaqSection';
 import { AdminPage } from './components/AdminPage';
 import { saveRegistrant } from './services/registrantStorage';
-import { syncSupabaseConfigFromServer } from './services/supabaseService';
+import { syncSupabaseConfigFromServer, getCurrentSupabaseSession, signOutSupabaseAuth } from './services/supabaseService';
 import { RegistrationFormData, WA_TARGET_NUMBER, parseDDMMYYYY } from './types';
 import {
   Loader2,
@@ -44,6 +44,20 @@ const initialFormData: RegistrationFormData = {
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'form' | 'admin'>('form');
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('bpjs_admin_unlocked') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [adminEmail, setAdminEmail] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('bpjs_admin_email') || '';
+    } catch {
+      return '';
+    }
+  });
   const [formData, setFormData] = useState<RegistrationFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,7 +69,37 @@ export default function App() {
 
   useEffect(() => {
     syncSupabaseConfigFromServer();
+    const checkSession = async () => {
+      try {
+        const session = await getCurrentSupabaseSession();
+        if (session?.user) {
+          setIsAdminLoggedIn(true);
+          const email = session.user.email || 'cs.sapalewa@gmail.com';
+          setAdminEmail(email);
+          sessionStorage.setItem('bpjs_admin_unlocked', 'true');
+          sessionStorage.setItem('bpjs_admin_email', email);
+        }
+      } catch (err) {
+        console.warn('Session check error:', err);
+      }
+    };
+    checkSession();
   }, []);
+
+  const handleAdminLogout = async () => {
+    try {
+      await signOutSupabaseAuth();
+    } catch (err) {
+      console.warn('Sign out error:', err);
+    }
+    setIsAdminLoggedIn(false);
+    setAdminEmail('');
+    try {
+      sessionStorage.removeItem('bpjs_admin_unlocked');
+      sessionStorage.removeItem('bpjs_admin_email');
+    } catch {}
+    setCurrentView('form');
+  };
 
   const handleFieldChange = <K extends keyof RegistrationFormData>(
     field: K,
@@ -215,15 +259,25 @@ export default function App() {
     return (
       <AdminPage
         onBackToForm={() => setCurrentView('form')}
+        isAdminLoggedIn={isAdminLoggedIn}
+        onLoginSuccess={(email) => {
+          setIsAdminLoggedIn(true);
+          setAdminEmail(email);
+        }}
+        onLogout={handleAdminLogout}
       />
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-100/80 flex flex-col selection:bg-emerald-500 selection:text-white">
-      {/* Header Banner */}
+      {/* Header Banner with Navigation Menu */}
       <Header
-        onOpenAdmin={() => setCurrentView('admin')}
+        currentView={currentView}
+        onNavigate={(view) => setCurrentView(view)}
+        isAdminLoggedIn={isAdminLoggedIn}
+        adminEmail={adminEmail}
+        onLogout={handleAdminLogout}
       />
 
       {/* Main Container - Mobile First Card */}
@@ -372,7 +426,7 @@ export default function App() {
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold transition-colors border border-slate-700 cursor-pointer"
           >
             <Users className="w-3.5 h-3.5 text-amber-400" />
-            <span>Halaman Admin Pencatatan</span>
+            <span>Menu Data Peserta {isAdminLoggedIn ? '(Admin Aktif)' : '(Login Admin)'}</span>
           </button>
         </div>
         <p className="text-slate-500 text-[10px] pt-1">

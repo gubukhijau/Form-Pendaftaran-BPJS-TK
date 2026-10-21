@@ -1,11 +1,33 @@
 import React from 'react';
-import { ShieldCheck, UserCheck, MessageSquare, Clock, PhoneCall, ShieldAlert, Users } from 'lucide-react';
+import {
+  ShieldCheck,
+  UserCheck,
+  MessageSquare,
+  Clock,
+  PhoneCall,
+  Users,
+  FileText,
+  Lock,
+  LogOut
+} from 'lucide-react';
 
 interface Props {
   onOpenAdmin?: () => void;
+  isAdminLoggedIn?: boolean;
+  adminEmail?: string;
+  currentView?: 'form' | 'admin';
+  onNavigate?: (view: 'form' | 'admin') => void;
+  onLogout?: () => void;
 }
 
-export const Header: React.FC<Props> = ({ onOpenAdmin }) => {
+export const Header: React.FC<Props> = ({
+  onOpenAdmin,
+  isAdminLoggedIn,
+  adminEmail,
+  currentView = 'form',
+  onNavigate,
+  onLogout
+}) => {
   return (
     <header className="relative overflow-hidden bg-gradient-to-br from-[#003366] via-[#0b4870] to-[#007b5e] text-white pt-8 pb-14 px-4 sm:px-6 shadow-lg">
       {/* Decorative background grid and blurs */}
@@ -14,7 +36,7 @@ export const Header: React.FC<Props> = ({ onOpenAdmin }) => {
       <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-sky-400/20 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative max-w-4xl mx-auto">
-        {/* Top bar with official badge & navigation links */}
+        {/* Top bar with official badge & navigation menu */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="inline-flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/20 px-3.5 py-1.5 rounded-full text-xs font-medium text-emerald-200 shadow-sm">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -22,17 +44,73 @@ export const Header: React.FC<Props> = ({ onOpenAdmin }) => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-
-            {onOpenAdmin && (
+            {/* Menu Navigasi: Formulir & Data Peserta */}
+            <div className="inline-flex items-center bg-black/25 backdrop-blur-md p-1 rounded-full border border-white/20 shadow-xs">
               <button
                 type="button"
-                onClick={onOpenAdmin}
-                className="inline-flex items-center gap-1.5 text-xs text-white bg-white/15 hover:bg-white/25 active:bg-white/30 transition-all px-3 py-1.5 rounded-full border border-white/30 font-bold cursor-pointer shadow-xs"
-                title="Buka Halaman Admin untuk mencatat pendaftar"
+                onClick={() => onNavigate?.('form')}
+                className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full font-bold transition-all cursor-pointer ${
+                  currentView === 'form'
+                    ? 'bg-white text-[#003366] shadow-sm'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Formulir</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate('admin');
+                  } else if (onOpenAdmin) {
+                    onOpenAdmin();
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full font-bold transition-all cursor-pointer ${
+                  currentView === 'admin'
+                    ? 'bg-emerald-500 text-white shadow-sm ring-2 ring-white/30'
+                    : isAdminLoggedIn
+                    ? 'bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-100 border border-emerald-400/40'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+                title={
+                  isAdminLoggedIn
+                    ? 'Buka Menu Data Peserta (Admin Terautentikasi)'
+                    : 'Menu Data Peserta (Muncul saat admin login)'
+                }
               >
                 <Users className="w-3.5 h-3.5 text-amber-300" />
-                <span>Halaman Admin</span>
+                <span>Data Peserta</span>
+                {isAdminLoggedIn ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Admin Aktif" />
+                ) : (
+                  <span title="Diperlukan Login Admin">
+                    <Lock className="w-3 h-3 text-white/60 ml-0.5" />
+                  </span>
+                )}
               </button>
+            </div>
+
+            {/* Status Admin & Tombol Keluar (Jika admin login) */}
+            {isAdminLoggedIn && (
+              <div className="hidden sm:inline-flex items-center gap-1.5 text-xs bg-emerald-950/40 border border-emerald-400/40 px-2.5 py-1 rounded-full text-emerald-200">
+                <span className="max-w-[120px] truncate font-medium text-[11px]" title={adminEmail}>
+                  {adminEmail || 'Admin'}
+                </span>
+                {onLogout && (
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="text-red-300 hover:text-red-100 font-bold ml-1 cursor-pointer text-[11px] inline-flex items-center gap-0.5"
+                    title="Keluar dari sesi Administrator"
+                  >
+                    <LogOut className="w-3 h-3" />
+                    <span>Keluar</span>
+                  </button>
+                )}
+              </div>
             )}
 
             <a
@@ -42,7 +120,7 @@ export const Header: React.FC<Props> = ({ onOpenAdmin }) => {
               className="inline-flex items-center gap-1.5 text-xs text-white/90 bg-emerald-600/70 hover:bg-emerald-600 transition-colors px-3 py-1.5 rounded-full border border-emerald-400/30 font-medium"
             >
               <PhoneCall className="w-3.5 h-3.5 text-emerald-200" />
-              <span>WA Petugas: 0857-4367-8786</span>
+              <span className="hidden md:inline">WA Petugas:</span> <span>0857-4367-8786</span>
             </a>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AdminRegistrant, DocumentStatus } from '../types';
+import { AdminRegistrant, DocumentStatus, maskPhoneNumber } from '../types';
 import {
   getRegistrants,
   updateRegistrantDocumentStatus,
@@ -44,20 +44,30 @@ import {
   LogOut,
   ShieldCheck,
   Sparkles,
-  Info
+  Info,
+  FileText
 } from 'lucide-react';
 
 interface Props {
   onBackToForm: () => void;
+  isAdminLoggedIn?: boolean;
+  onLoginSuccess?: (email: string) => void;
+  onLogout?: () => void;
 }
 
 const ADMIN_SECRET_KEY = 'SAPALEWA';
 const DEFAULT_ADMIN_EMAIL = 'cs.sapalewa@gmail.com';
 
-export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
+export const AdminPage: React.FC<Props> = ({
+  onBackToForm,
+  isAdminLoggedIn,
+  onLoginSuccess,
+  onLogout
+}) => {
   // Authentication lock state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     try {
+      if (isAdminLoggedIn) return true;
       return sessionStorage.getItem('bpjs_admin_unlocked') === 'true';
     } catch {
       return false;
@@ -71,6 +81,12 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
       return '';
     }
   });
+
+  useEffect(() => {
+    if (isAdminLoggedIn) {
+      setIsAuthenticated(true);
+    }
+  }, [isAdminLoggedIn]);
 
   // Supabase Auth credentials state (kosongkan secara default agar tidak terlihat)
   const [authEmail, setAuthEmail] = useState('');
@@ -118,6 +134,22 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
   const [supabaseConfig, setSupabaseConfig] = useState(getSupabaseConfig());
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Sensor nomor HP peserta: aktif secara default demi privasi
+  const [isGlobalMaskingEnabled, setIsGlobalMaskingEnabled] = useState(true);
+  const [revealedPhoneIds, setRevealedPhoneIds] = useState<Record<string, boolean>>({});
+
+  const toggleRowPhoneMask = (id: string) => {
+    setRevealedPhoneIds((prev) => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const isRowPhoneMasked = (id: string) => {
+    if (!isGlobalMaskingEnabled) return false;
+    return !revealedPhoneIds[id];
+  };
 
   // New manual entry form state
   const [newNama, setNewNama] = useState('');
@@ -197,6 +229,7 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
             sessionStorage.setItem('bpjs_admin_email', loggedEmail);
           } catch {}
           setAuthSuccess('Berhasil login via Supabase Auth!');
+          onLoginSuccess?.(loggedEmail);
           return;
         } else {
           // Display error from Supabase
@@ -209,11 +242,13 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
           authPassword === ADMIN_SECRET_KEY
         ) {
           setIsAuthenticated(true);
-          setCurrentUserEmail(trimmedEmail || DEFAULT_ADMIN_EMAIL);
+          const loggedEmail = trimmedEmail || DEFAULT_ADMIN_EMAIL;
+          setCurrentUserEmail(loggedEmail);
           try {
             sessionStorage.setItem('bpjs_admin_unlocked', 'true');
-            sessionStorage.setItem('bpjs_admin_email', trimmedEmail || DEFAULT_ADMIN_EMAIL);
+            sessionStorage.setItem('bpjs_admin_email', loggedEmail);
           } catch {}
+          onLoginSuccess?.(loggedEmail);
           return;
         } else {
           setAuthError('Email atau password tidak sesuai. Pastikan Anda memasukkan akun administrator yang benar.');
@@ -255,6 +290,7 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
             sessionStorage.setItem('bpjs_admin_email', loggedEmail);
           } catch {}
           setAuthSuccess('Pendaftaran berhasil dan Anda langsung masuk!');
+          onLoginSuccess?.(loggedEmail);
         } else {
           setAuthSuccess(res.message || 'Akun berhasil didaftarkan di Supabase Auth! Silakan coba klik tombol "Masuk via Supabase Auth".');
         }
@@ -275,12 +311,14 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
       console.warn('Sign out error:', err);
     }
     setIsAuthenticated(false);
+    setCurrentUserEmail('');
     setAuthError('');
     setAuthSuccess('');
     try {
       sessionStorage.removeItem('bpjs_admin_unlocked');
       sessionStorage.removeItem('bpjs_admin_email');
     } catch {}
+    onLogout?.();
   };
 
   const handleStatusChange = (id: string, newStatus: DocumentStatus) => {
@@ -344,7 +382,7 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
     const rows = registrants.map((r) => [
       `"${r.namaLengkap.replace(/"/g, '""')}"`,
       `"${r.alamat.replace(/"/g, '""')}"`,
-      `"${r.noHp}"`,
+      `"${isGlobalMaskingEnabled ? maskPhoneNumber(r.noHp) : r.noHp}"`,
       `"${r.dokumen}"`
     ]);
 
@@ -368,18 +406,25 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
         <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scaleUp">
           {/* Top Header */}
           <div className="bg-gradient-to-r from-[#003366] via-[#0b4870] to-[#007b5e] p-6 text-white text-center relative select-none">
+            {/* Top pill */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-emerald-200 mb-3">
+              <Users className="w-3.5 h-3.5 text-amber-300" />
+              <span>Menu Data Peserta</span>
+              <Lock className="w-3 h-3 text-white/70 ml-0.5" />
+            </div>
+
             <button
               type="button"
               onClick={handleSecretLogoClick}
               title="Kunci Administrator"
               aria-label="Kunci Administrator"
-              className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-emerald-300 shadow-inner cursor-pointer active:scale-95 transition-transform"
+              className="w-14 h-14 mx-auto mb-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-emerald-300 shadow-inner cursor-pointer active:scale-95 transition-transform"
             >
-              <Cloud className="w-8 h-8" />
+              <Users className="w-7 h-7" />
             </button>
-            <h2 className="text-xl font-extrabold tracking-tight">Kunci Akses Administrator</h2>
+            <h2 className="text-xl font-extrabold tracking-tight">Login Administrator</h2>
             <p className="text-xs text-emerald-100 mt-1">
-              Khusus pengelola data pendaftaran BPJS Ketenagakerjaan BPU
+              Halaman Data Peserta akan muncul setelah administrator berhasil login
             </p>
             {showSecretControls && (
               <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-400 text-slate-900 shadow-xs animate-fadeIn">
@@ -569,25 +614,31 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onBackToForm}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs sm:text-sm font-semibold text-white transition-colors"
-                title="Kembali ke Formulir Pendaftaran"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Formulir</span>
-              </button>
+              {/* Menu Navigasi: Formulir & Data Peserta */}
+              <div className="inline-flex items-center bg-black/25 backdrop-blur-md p-1 rounded-xl border border-white/20 text-xs">
+                <button
+                  type="button"
+                  onClick={onBackToForm}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 font-semibold transition-colors cursor-pointer"
+                  title="Kembali ke Formulir Pendaftaran"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Formulir Pendaftaran</span>
+                </button>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white font-bold shadow-xs">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Data Peserta</span>
+                </div>
+              </div>
 
-              <div className="h-6 w-px bg-white/20 hidden sm:block" />
+              <div className="h-6 w-px bg-white/20 hidden md:block" />
 
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-emerald-300" />
-                  Halaman Admin — Pencatatan Pendaftar
+              <div className="hidden md:block">
+                <h1 className="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                  <span>Halaman Data Peserta</span>
                 </h1>
-                <p className="text-xs text-emerald-100 hidden sm:block">
-                  Kelola dan catat calon peserta BPJS Ketenagakerjaan BPU
+                <p className="text-[11px] text-emerald-100">
+                  Data pendaftar BPJS Ketenagakerjaan BPU ({supabaseConfig.isEnabled ? 'Supabase Cloud' : 'Lokal'})
                 </p>
               </div>
             </div>
@@ -812,7 +863,7 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
 
         {/* The Table - Exactly specified columns: Nama Lengkap, Alamat, No Hp, Dokumen */}
         <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between">
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                 Tabel Catatan Pendaftar
@@ -820,6 +871,39 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
               <p className="text-xs text-slate-500 mt-0.5">
                 Menampilkan {filteredRegistrants.length} dari total {registrants.length} pendaftar
               </p>
+            </div>
+
+            {/* Tombol Kontrol Sensor Nomor HP */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGlobalMaskingEnabled((prev) => !prev);
+                  setRevealedPhoneIds({});
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  isGlobalMaskingEnabled
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shadow-xs'
+                    : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                }`}
+                title={
+                  isGlobalMaskingEnabled
+                    ? 'Klik untuk membuka sensor nomor HP seluruh peserta'
+                    : 'Klik untuk mengaktifkan sensor nomor HP peserta'
+                }
+              >
+                {isGlobalMaskingEnabled ? (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Sensor HP: Aktif</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Sensor HP: Terbuka</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
@@ -833,8 +917,16 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
                   <th scope="col" className="py-3.5 px-4 sm:px-6 w-2/5">
                     Alamat
                   </th>
-                  <th scope="col" className="py-3.5 px-4 sm:px-6 w-1/6">
-                    No Hp
+                  <th scope="col" className="py-3.5 px-4 sm:px-6 w-1/5">
+                    <div className="flex items-center gap-1.5">
+                      <span>No Hp</span>
+                      {isGlobalMaskingEnabled && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 normal-case">
+                          <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" />
+                          Disensor
+                        </span>
+                      )}
+                    </div>
                   </th>
                   <th scope="col" className="py-3.5 px-4 sm:px-6 w-1/5">
                     Dokumen
@@ -882,18 +974,53 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
                           <span>{row.alamat}</span>
                         </td>
 
-                        {/* 3. No Hp */}
+                        {/* 3. No Hp (Disensor demi pelindungan data pribadi) */}
                         <td className="py-3.5 px-4 sm:px-6 align-top">
-                          <a
-                            href={`https://wa.me/${row.noHp.replace(/\D/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Halo ${row.namaLengkap}, terkait pendaftaran BPJS Ketenagakerjaan BPU...`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 font-mono font-semibold text-[#003366] hover:text-emerald-700 hover:underline"
-                            title="Hubungi via WhatsApp"
-                          >
-                            <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span>{row.noHp}</span>
-                          </a>
+                          <div className="inline-flex items-center gap-1.5 flex-wrap">
+                            <a
+                              href={`https://wa.me/${row.noHp.replace(/\D/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Halo ${row.namaLengkap}, terkait pendaftaran BPJS Ketenagakerjaan BPU...`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 font-mono font-semibold text-[#003366] hover:text-emerald-700 hover:underline"
+                              title={
+                                isRowPhoneMasked(row.id)
+                                  ? 'Hubungi via WhatsApp (Klik ikon mata untuk lihat nomor)'
+                                  : 'Hubungi via WhatsApp'
+                              }
+                            >
+                              <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span
+                                className={
+                                  isRowPhoneMasked(row.id)
+                                    ? 'tracking-wider text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200'
+                                    : ''
+                                }
+                              >
+                                {isRowPhoneMasked(row.id) ? maskPhoneNumber(row.noHp) : row.noHp}
+                              </span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => toggleRowPhoneMask(row.id)}
+                              className="p-1 text-slate-400 hover:text-[#003366] hover:bg-slate-100 rounded-md transition-colors cursor-pointer shrink-0"
+                              title={
+                                isRowPhoneMasked(row.id)
+                                  ? 'Buka sensor nomor HP ini'
+                                  : 'Sensor kembali nomor HP ini'
+                              }
+                              aria-label={
+                                isRowPhoneMasked(row.id)
+                                  ? 'Buka sensor nomor HP'
+                                  : 'Sensor nomor HP'
+                              }
+                            >
+                              {isRowPhoneMasked(row.id) ? (
+                                <Eye className="w-3.5 h-3.5 text-slate-400 hover:text-slate-700" />
+                              ) : (
+                                <EyeOff className="w-3.5 h-3.5 text-emerald-600 hover:text-emerald-800" />
+                              )}
+                            </button>
+                          </div>
                         </td>
 
                         {/* 4. Dokumen (Pilihan: Terlampir / Belum Terlampir) */}
@@ -940,9 +1067,15 @@ export const AdminPage: React.FC<Props> = ({ onBackToForm }) => {
             </table>
           </div>
 
-          <div className="bg-slate-50 border-t border-slate-200 px-4 sm:px-6 py-3 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
+          <div className="bg-slate-50 border-t border-slate-200 px-4 sm:px-6 py-3 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                Nomor HP peserta <strong>disensor otomatis</strong> demi perlindungan data pribadi (PDP). Klik tombol mata untuk membuka sensor per peserta.
+              </span>
+            </div>
             <span>
-              Keterangan: Kolom <strong>Dokumen</strong> dapat langsung diubah statusnya antara <strong>Terlampir</strong> dan <strong>Belum Terlampir</strong> sesuai verifikasi berkas di WhatsApp.
+              Kolom <strong>Dokumen</strong> dapat langsung diubah statusnya antara <strong>Terlampir</strong> dan <strong>Belum Terlampir</strong>.
             </span>
           </div>
         </div>
