@@ -93,6 +93,7 @@ export const PAYMENT_PERIODS: { period: PaymentPeriod; label: string }[] = [
 ];
 
 export const WA_TARGET_NUMBER = '085743678786';
+export const WA_TARGET_DISPLAY = '0857-4367-8786';
 export const WA_TARGET_INTERNATIONAL = '6285743678786';
 
 export function formatRupiah(amount: number): string {

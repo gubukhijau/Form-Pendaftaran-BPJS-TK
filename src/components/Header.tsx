@@ -10,6 +10,7 @@ import {
   Lock,
   LogOut
 } from 'lucide-react';
+import { WA_TARGET_INTERNATIONAL, WA_TARGET_DISPLAY } from '../types';
 
 interface Props {
   onOpenAdmin?: () => void;
@@ -102,13 +103,13 @@ export const Header: React.FC<Props> = ({
             )}
 
             <a
-              href="https://wa.me/6285743678786"
+              href={`https://wa.me/${WA_TARGET_INTERNATIONAL}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-white/90 bg-emerald-600/70 hover:bg-emerald-600 transition-colors px-3 py-1.5 rounded-full border border-emerald-400/30 font-medium"
             >
               <PhoneCall className="w-3.5 h-3.5 text-emerald-200" />
-              <span className="hidden md:inline">WA Petugas:</span> <span>0857-4367-8786</span>
+              <span className="hidden md:inline">WA Petugas:</span> <span>{WA_TARGET_DISPLAY}</span>
             </a>
           </div>
         </div>

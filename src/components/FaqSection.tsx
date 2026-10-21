@@ -15,7 +15,7 @@ export const FaqSection: React.FC = () => {
     },
     {
       q: 'Bagaimana cara mengirimkan dokumen persyaratan (Foto KTP Asli, Foto KK Asli, dan Foto Diri/Selfie)?',
-      a: 'Anda tidak perlu mengunggah foto di website ini. Cukup isi data diri di formulir, lalu tekan tombol "Kirim Pendaftaran via WhatsApp". Setelah WhatsApp terbuka dan pesan pendaftaran terkirim, Anda dapat langsung melampirkan berkas persyaratan berupa Foto KTP Asli, Foto KK Asli, dan Foto diri terbaru (selfi) ke obrolan WhatsApp petugas kami (085743678786).'
+      a: 'Anda tidak perlu mengunggah foto di website ini. Cukup isi data diri di formulir, lalu tekan tombol "Kirim Pendaftaran via WhatsApp". Setelah WhatsApp terbuka dan pesan pendaftaran terkirim, Anda dapat langsung melampirkan berkas persyaratan berupa Foto KTP Asli, Foto KK Asli, dan Foto diri terbaru (selfi) ke obrolan WhatsApp petugas kami (0857-4367-8786).'
     },
     {
       q: 'Bagaimana cara pembayaran iuran untuk bulan-bulan berikutnya?',

@@ -114,7 +114,11 @@ export const DataPesertaSection: React.FC<Props> = ({
       setRegistrants(getRegistrants());
     };
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('registrants_updated', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('registrants_updated', handleStorageChange);
+    };
   }, []);
 
   const toggleRowPhoneMask = (id: string) => {

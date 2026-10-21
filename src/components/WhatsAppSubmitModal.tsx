@@ -5,7 +5,8 @@ import {
   formatRupiah,
   formatDateToDDMMYYYY,
   WA_TARGET_INTERNATIONAL,
-  WA_TARGET_NUMBER
+  WA_TARGET_NUMBER,
+  WA_TARGET_DISPLAY
 } from '../types';
 import {
   Send,
@@ -24,41 +25,25 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   formData: RegistrationFormData;
+  onViewDataPeserta?: () => void;
 }
 
-export const WhatsAppSubmitModal: React.FC<Props> = ({
-  isOpen,
-  onClose,
-  formData
-}) => {
-  const [copied, setCopied] = useState(false);
-  const [hasOpenedWhatsApp, setHasOpenedWhatsApp] = useState(false);
-
-  if (!isOpen) return null;
-
+export const buildWhatsAppMessage = (formData: RegistrationFormData): string => {
   const currentProgram = formData.program ? PROGRAM_DATA[formData.program] : null;
   const monthlyRate = currentProgram ? currentProgram.monthlyRate : 0;
   const totalIuran = formData.periodePembayaran && monthlyRate ? formData.periodePembayaran * monthlyRate : 0;
 
-  // Formatted job title
-  const getJobString = () => {
-    if (formData.pekerjaan === 'Tukang') {
-      return `Tukang (${formData.detailPekerjaanTukang || 'Tukang'})`;
-    }
-    if (formData.pekerjaan === 'Lain-lain') {
-      return formData.detailPekerjaanLain || 'Lain-lain';
-    }
-    return formData.pekerjaan || '-';
-  };
+  let jobText = formData.pekerjaan || '-';
+  if (formData.pekerjaan === 'Tukang') {
+    jobText = `Tukang (${formData.detailPekerjaanTukang || 'Tukang'})`;
+  } else if (formData.pekerjaan === 'Lain-lain') {
+    jobText = formData.detailPekerjaanLain || 'Lain-lain';
+  }
 
-  // Build exact formatted WhatsApp message with dd/mm/yyyy date format
-  const buildWhatsAppMessage = (): string => {
-    const jobText = getJobString();
-    const emailText = formData.email.trim() ? formData.email.trim() : 'Tidak diisi';
-    const tglLahirText = formatDateToDDMMYYYY(formData.tanggalLahir) || '-';
+  const emailText = formData.email.trim() ? formData.email.trim() : 'Tidak diisi';
+  const tglLahirText = formatDateToDDMMYYYY(formData.tanggalLahir) || '-';
 
-    return (
-`Halo, saya ingin mendaftar BPJS Ketenagakerjaan BPU.
+  return `Halo, saya ingin mendaftar BPJS Ketenagakerjaan BPU.
 
 DATA PESERTA
 Nama Lengkap: ${formData.namaLengkap.trim()}
@@ -82,11 +67,21 @@ DOKUMEN PERSYARATAN
 PERNYATAAN
 Peserta menyatakan data yang diisi benar dan menyetujui pernyataan pendaftaran.
 
-Mohon informasi mengenai proses selanjutnya. Terima kasih.`
-    );
-  };
+Mohon informasi mengenai proses selanjutnya. Terima kasih.`;
+};
 
-  const messageText = buildWhatsAppMessage();
+export const WhatsAppSubmitModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  formData,
+  onViewDataPeserta
+}) => {
+  const [copied, setCopied] = useState(false);
+  const [hasOpenedWhatsApp, setHasOpenedWhatsApp] = useState(false);
+
+  if (!isOpen) return null;
+
+  const messageText = buildWhatsAppMessage(formData);
   const whatsappUrl = `https://wa.me/${WA_TARGET_INTERNATIONAL}?text=${encodeURIComponent(messageText)}`;
 
   const handleCopy = () => {
@@ -116,20 +111,42 @@ Mohon informasi mengenai proses selanjutnya. Terima kasih.`
           <div className="flex items-center gap-2 mb-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs font-semibold text-emerald-200 tracking-wider uppercase">
-              Konfirmasi Pendaftaran BPU
+              Data Masuk Database & WhatsApp Terhubung
             </span>
           </div>
 
           <h3 className="text-lg sm:text-xl font-extrabold text-white leading-snug">
-            Data Pendaftaran Siap Dikirim ke WhatsApp
+            Data Masuk ke Database & WhatsApp Dibuka
           </h3>
           <p className="text-xs sm:text-sm text-slate-100/90 mt-1">
-            Tujuan: Petugas BPJS BPU ({WA_TARGET_NUMBER})
+            Status Dokumen: <strong className="text-amber-300">Belum Terlampir</strong> • Tujuan WA: <strong>{WA_TARGET_DISPLAY}</strong>
           </p>
         </div>
 
         {/* Content Body */}
-        <div className="p-5 sm:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="p-5 sm:p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* Dual confirmation box */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-start gap-2.5">
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-950">
+                <p className="font-bold">1. Tersimpan ke Database</p>
+                <p className="text-[11px] text-emerald-800 mt-0.5">
+                  Data Anda otomatis tercatat di tabel Data Peserta dengan status <strong>Belum Terlampir</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3 flex items-start gap-2.5">
+              <MessageCircle className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-sky-950">
+                <p className="font-bold">2. Direct ke WhatsApp</p>
+                <p className="text-[11px] text-sky-800 mt-0.5">
+                  Format pendaftaran otomatis siap dikirim ke nomor WhatsApp petugas.
+                </p>
+              </div>
+            </div>
+          </div>
           {/* Important notice: Must send KTP & KK in WhatsApp chat */}
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-xs sm:text-sm text-emerald-950 space-y-2">
             <div className="flex items-start gap-2.5">
@@ -191,30 +208,43 @@ Mohon informasi mengenai proses selanjutnya. Terima kasih.`
                 WhatsApp Sedang Dibuka
               </div>
               <p>
-                Setelah menekan tombol <strong>Kirim</strong> di chat WhatsApp, jangan lupa untuk melampirkan <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong> Anda ke nomor <strong>{WA_TARGET_NUMBER}</strong> agar pendaftaran segera diproses.
+                Setelah menekan tombol <strong>Kirim</strong> di chat WhatsApp, jangan lupa untuk melampirkan <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong> Anda ke nomor <strong>{WA_TARGET_DISPLAY}</strong> agar pendaftaran segera diproses.
               </p>
             </div>
           )}
         </div>
 
         {/* Modal Actions */}
-        <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full sm:w-auto px-5 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/70 rounded-xl transition-colors"
-          >
-            Kembali ke Formulir
-          </button>
+        <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full sm:w-auto px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200/70 rounded-xl transition-colors cursor-pointer"
+            >
+              Kembali ke Formulir
+            </button>
+
+            {onViewDataPeserta && (
+              <button
+                type="button"
+                onClick={onViewDataPeserta}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs sm:text-sm font-bold text-[#003366] bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition-colors cursor-pointer"
+              >
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span>Lihat di Data Peserta</span>
+              </button>
+            )}
+          </div>
 
           <button
             type="button"
             onClick={handleOpenWhatsApp}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3 bg-[#25D366] hover:bg-[#1ebc57] active:bg-[#189b47] text-white text-sm sm:text-base font-bold rounded-xl shadow-lg shadow-emerald-500/30 transition-all transform hover:-translate-y-0.5"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-[#25D366] hover:bg-[#1ebc57] active:bg-[#189b47] text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-emerald-500/30 transition-all transform hover:-translate-y-0.5 cursor-pointer"
           >
-            <Send className="w-4 h-4" />
-            <span>Buka WhatsApp Sekarang</span>
-            <ExternalLink className="w-4 h-4 opacity-80" />
+            <Send className="w-4 h-4 shrink-0" />
+            <span>Kirim WhatsApp ({WA_TARGET_DISPLAY})</span>
+            <ExternalLink className="w-3.5 h-3.5 opacity-80 shrink-0" />
           </button>
         </div>
       </div>

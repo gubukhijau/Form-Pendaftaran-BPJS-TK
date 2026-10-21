@@ -61,6 +61,8 @@ export function getLocalRegistrants(): AdminRegistrant[] {
 export function setLocalRegistrants(list: AdminRegistrant[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent('registrants_updated', { detail: list }));
+    window.dispatchEvent(new Event('storage'));
   } catch {
     // Ignore storage quota
   }
@@ -86,16 +88,44 @@ export async function fetchAndSyncRegistrants(): Promise<{
   return { data: getLocalRegistrants(), source: 'local' };
 }
 
+export async function saveRegistrantAsync(
+  data: Omit<AdminRegistrant, 'id' | 'createdAt'>
+): Promise<AdminRegistrant> {
+  const current = getLocalRegistrants();
+  const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+  const newEntry: AdminRegistrant = {
+    id: `REG-${randomSuffix}`,
+    namaLengkap: data.namaLengkap.trim(),
+    alamat: data.alamat.trim(),
+    noHp: data.noHp.trim(),
+    dokumen: data.dokumen || 'Belum Terlampir',
+    createdAt: new Date().toISOString()
+  };
+
+  const updated = [newEntry, ...current];
+  setLocalRegistrants(updated);
+
+  // Save directly to Supabase
+  try {
+    await insertRegistrantToSupabase(newEntry);
+  } catch (err) {
+    console.warn('Direct Supabase insert error:', err);
+  }
+
+  return newEntry;
+}
+
 export function saveRegistrant(
   data: Omit<AdminRegistrant, 'id' | 'createdAt'>
 ): AdminRegistrant {
   const current = getLocalRegistrants();
+  const randomSuffix = Math.floor(100000 + Math.random() * 900000);
   const newEntry: AdminRegistrant = {
-    id: `REG-${Date.now().toString().slice(-6)}`,
+    id: `REG-${randomSuffix}`,
     namaLengkap: data.namaLengkap.trim(),
     alamat: data.alamat.trim(),
     noHp: data.noHp.trim(),
-    dokumen: data.dokumen,
+    dokumen: data.dokumen || 'Belum Terlampir',
     createdAt: new Date().toISOString()
   };
 

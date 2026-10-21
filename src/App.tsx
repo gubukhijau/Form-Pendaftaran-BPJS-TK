@@ -11,13 +11,13 @@ import { ProgramSelector } from './components/ProgramSelector';
 import { PaymentPeriodSelector } from './components/PaymentPeriodSelector';
 import { StatementSection } from './components/StatementSection';
 import { RegistrationSummary } from './components/RegistrationSummary';
-import { WhatsAppSubmitModal } from './components/WhatsAppSubmitModal';
+import { WhatsAppSubmitModal, buildWhatsAppMessage } from './components/WhatsAppSubmitModal';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { FaqSection } from './components/FaqSection';
 import { DataPesertaSection } from './components/DataPesertaSection';
-import { saveRegistrant } from './services/registrantStorage';
+import { saveRegistrant, saveRegistrantAsync } from './services/registrantStorage';
 import { syncSupabaseConfigFromServer, getCurrentSupabaseSession, signOutSupabaseAuth } from './services/supabaseService';
-import { RegistrationFormData, WA_TARGET_NUMBER, parseDDMMYYYY } from './types';
+import { RegistrationFormData, WA_TARGET_NUMBER, WA_TARGET_DISPLAY, WA_TARGET_INTERNATIONAL, parseDDMMYYYY } from './types';
 import {
   Loader2,
   AlertCircle,
@@ -231,23 +231,53 @@ export default function App() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const isValid = validateForm();
+    if (!isValid) return;
+
     setIsSubmitting(true);
 
-    // Brief loading effect for validation & preparation
-    setTimeout(() => {
-      const isValid = validateForm();
-      setIsSubmitting(false);
-      if (isValid) {
-        // Record applicant into admin registrant storage
-        saveRegistrant({
-          namaLengkap: formData.namaLengkap.trim(),
-          alamat: formData.alamatRumah.trim(),
-          noHp: formData.nomorHp.trim(),
-          dokumen: 'Belum Terlampir'
-        });
-        setIsModalOpen(true);
+    // 1. Direct LANGSUNG ke WhatsApp ke nomor 085743678786 (buka segera agar tidak diblokir popup blocker)
+    const message = buildWhatsAppMessage(formData);
+    const whatsappUrl = `https://wa.me/${WA_TARGET_INTERNATIONAL}?text=${encodeURIComponent(message)}`;
+
+    try {
+      const waWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
+        const link = document.createElement('a');
+        link.href = whatsappUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
-    }, 350);
+    } catch (err) {
+      console.warn('Direct WA open fallback:', err);
+    }
+
+    // 2. Simpan LANGSUNG ke database data peserta dengan status dokumen 'Belum Terlampir'
+    saveRegistrant({
+      namaLengkap: formData.namaLengkap.trim(),
+      alamat: formData.alamatRumah.trim(),
+      noHp: formData.nomorHp.trim(),
+      dokumen: 'Belum Terlampir'
+    });
+
+    saveRegistrantAsync({
+      namaLengkap: formData.namaLengkap.trim(),
+      alamat: formData.alamatRumah.trim(),
+      noHp: formData.nomorHp.trim(),
+      dokumen: 'Belum Terlampir'
+    })
+      .catch((err) => {
+        console.error('Error saat menyimpan pendaftaran ke Supabase:', err);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+
+    // 3. Tampilkan modal konfirmasi sukses & panduan kirim dokumen di WhatsApp
+    setIsModalOpen(true);
   };
 
   const handleEditSection = () => {
@@ -337,7 +367,7 @@ export default function App() {
                   <span>Formulir Pendaftaran Calon Peserta BPU</span>
                 </div>
                 <div className="text-[11px] text-slate-500">
-                  WhatsApp Layanan: <strong className="text-slate-700">{WA_TARGET_NUMBER}</strong>
+                  WhatsApp Layanan: <strong className="text-slate-700">{WA_TARGET_DISPLAY}</strong>
                 </div>
               </div>
 
@@ -416,7 +446,7 @@ export default function App() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Memproses Formulir...</span>
+                        <span>Menyimpan ke Database & Membuka WhatsApp...</span>
                       </>
                     ) : (
                       <>
@@ -434,7 +464,7 @@ export default function App() {
                   </button>
 
                   <p className="text-xs text-slate-500 text-center max-w-md">
-                    Pesan formulir pendaftaran akan terbuka otomatis di WhatsApp nomor <span className="font-semibold text-slate-700">{WA_TARGET_NUMBER}</span>. Kirimkan pesan tersebut beserta <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong> Anda di ruang obrolan.
+                    Setelah tombol diklik, data Anda otomatis tersimpan langsung ke <strong>Database Data Peserta</strong> (status: <span className="font-semibold text-amber-700">Belum Terlampir</span>) dan dialihkan langsung ke WhatsApp resmi <strong>{WA_TARGET_DISPLAY}</strong> untuk melampirkan <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong>.
                   </p>
                 </div>
               </form>
@@ -444,24 +474,6 @@ export default function App() {
             <div className="space-y-6">
               <PrivacyNotice />
               <FaqSection />
-            </div>
-
-            {/* Embedded Data Peserta on Homepage */}
-            <div className="pt-4">
-              <div className="bg-gradient-to-r from-slate-200 via-emerald-200 to-slate-200 h-px w-full my-6" />
-              <DataPesertaSection
-                isAdminLoggedIn={isAdminLoggedIn}
-                adminEmail={adminEmail}
-                onLoginSuccess={(email) => {
-                  setIsAdminLoggedIn(true);
-                  setAdminEmail(email);
-                }}
-                onLogout={handleAdminLogout}
-                onSwitchToForm={() => {
-                  setCurrentView('form');
-                  if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth' });
-                }}
-              />
             </div>
           </>
         ) : (
@@ -489,6 +501,11 @@ export default function App() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         formData={formData}
+        onViewDataPeserta={() => {
+          setIsModalOpen(false);
+          setCurrentView('peserta');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       />
 
       {/* Footer */}
@@ -497,7 +514,7 @@ export default function App() {
           Formulir Pengajuan Kepesertaan Mandiri BPJS Ketenagakerjaan BPU
         </p>
         <p className="max-w-xl mx-auto text-slate-400 text-[11px] leading-relaxed">
-          Penyedia formulir bantuan pendaftaran pekerja bukan penerima upah untuk perlindungan JKK, JKM, dan JHT. Teks pesan pendaftaran diteruskan ke nomor layanan WhatsApp 085743678786.
+          Penyedia formulir bantuan pendaftaran pekerja bukan penerima upah untuk perlindungan JKK, JKM, dan JHT. Teks pesan pendaftaran diteruskan ke nomor layanan WhatsApp {WA_TARGET_DISPLAY}.
         </p>
         <div className="pt-1 flex flex-wrap items-center justify-center gap-2.5">
           <button
