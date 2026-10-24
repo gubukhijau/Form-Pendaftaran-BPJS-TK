@@ -76,6 +76,16 @@ create table if not exists ${currentTableName} (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Tambahkan kolom lengkap untuk DOCX Formulir Resmi (NIK, TTL, Nama Ibu, dll):
+alter table ${currentTableName} add column if not exists nik text;
+alter table ${currentTableName} add column if not exists tempat_lahir text;
+alter table ${currentTableName} add column if not exists tanggal_lahir text;
+alter table ${currentTableName} add column if not exists nama_ibu_kandung text;
+alter table ${currentTableName} add column if not exists pekerjaan text;
+alter table ${currentTableName} add column if not exists pekerjaan_sampingan text;
+alter table ${currentTableName} add column if not exists email text;
+alter table ${currentTableName} add column if not exists program text;
+
 -- Aktifkan Row Level Security (RLS)
 alter table ${currentTableName} enable row level security;
 

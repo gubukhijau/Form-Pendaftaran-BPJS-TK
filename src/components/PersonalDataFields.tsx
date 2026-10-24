@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { RegistrationFormData, parseDDMMYYYY, formatDateToDDMMYYYY } from '../types';
-import { User, CreditCard, Home, MapPin, Calendar, Phone, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, CreditCard, Home, MapPin, Calendar, Phone, Mail, AlertCircle, CheckCircle2, Heart } from 'lucide-react';
 
 interface Props {
   formData: RegistrationFormData;
@@ -273,6 +273,39 @@ export const PersonalDataFields: React.FC<Props> = ({
           ) : (
             <p className="mt-1 text-[11px] text-slate-500">
               Ketik dengan format <span className="font-semibold text-slate-700">dd/mm/yyyy</span> atau klik ikon kalender.
+            </p>
+          )}
+        </div>
+
+        {/* Nama Ibu Kandung */}
+        <div className="md:col-span-2">
+          <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
+            Nama Ibu Kandung <span className="text-red-500">*</span>
+            <span className="text-xs font-normal text-slate-500 ml-1">(Sesuai Kartu Keluarga untuk verifikasi kepesertaan)</span>
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <Heart className="w-4 h-4 text-pink-500" />
+            </div>
+            <input
+              type="text"
+              value={formData.namaIbuKandung}
+              onChange={(e) => {
+                onChange('namaIbuKandung', e.target.value);
+                if (errors.namaIbuKandung) onClearError('namaIbuKandung');
+              }}
+              placeholder="Contoh: Kartini"
+              className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm bg-white border rounded-xl shadow-xs transition-all focus:outline-none ${
+                errors.namaIbuKandung
+                  ? 'border-red-400 ring-2 ring-red-100 focus:border-red-500'
+                  : 'border-slate-300 focus:border-[#003366] focus:ring-2 focus:ring-[#003366]/10'
+              }`}
+            />
+          </div>
+          {errors.namaIbuKandung && (
+            <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {errors.namaIbuKandung}
             </p>
           )}
         </div>

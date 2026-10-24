@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AdminRegistrant, DocumentStatus, maskPhoneNumber } from '../types';
+import { AdminRegistrant, DocumentStatus, maskPhoneNumber, maskNik } from '../types';
 import {
   getRegistrants,
   updateRegistrantDocumentStatus,
@@ -24,6 +24,7 @@ import {
   Trash2,
   Download,
   Phone,
+  CreditCard,
   AlertCircle,
   X,
   FileSpreadsheet,
@@ -41,8 +42,10 @@ import {
   Sparkles,
   Info,
   FileText,
+  FileDown,
   ExternalLink
 } from 'lucide-react';
+import { ExportDocxModal } from './ExportDocxModal';
 
 interface Props {
   isAdminLoggedIn?: boolean;
@@ -89,8 +92,14 @@ export const DataPesertaSection: React.FC<Props> = ({
   const [showSecretControls, setShowSecretControls] = useState(false);
   const [secretClickCount, setSecretClickCount] = useState(0);
 
+  // Docx Export Modal state
+  const [docxModalRegistrant, setDocxModalRegistrant] = useState<AdminRegistrant | null>(null);
+  const [isDocxModalOpen, setIsDocxModalOpen] = useState(false);
+
   // Add manual registrant form state
   const [newNama, setNewNama] = useState('');
+  const [newNik, setNewNik] = useState('');
+  const [newNamaIbuKandung, setNewNamaIbuKandung] = useState('');
   const [newAlamat, setNewAlamat] = useState('');
   const [newNoHp, setNewNoHp] = useState('');
   const [newDokumen, setNewDokumen] = useState<DocumentStatus>('Belum Terlampir');
@@ -282,11 +291,15 @@ export const DataPesertaSection: React.FC<Props> = ({
       namaLengkap: newNama.trim(),
       alamat: newAlamat.trim(),
       noHp: newNoHp.trim(),
-      dokumen: newDokumen
+      dokumen: newDokumen,
+      namaIbuKandung: newNamaIbuKandung.trim(),
+      nik: newNik.trim()
     });
 
     setRegistrants([created, ...registrants]);
     setNewNama('');
+    setNewNik('');
+    setNewNamaIbuKandung('');
     setNewAlamat('');
     setNewNoHp('');
     setNewDokumen('Belum Terlampir');
@@ -490,11 +503,11 @@ export const DataPesertaSection: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Privacy Info Notice regarding phone number sensor */}
+        {/* Privacy Info Notice regarding NIK and phone number sensor */}
         <div className="mt-4 p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl flex items-start gap-2.5 text-xs text-blue-900">
           <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            <strong>Perlindungan Data Pribadi (PDP):</strong> Nomor HP seluruh pendaftar secara otomatis disensor untuk menjaga privasi masyarakat umum. Persyaratan pendaftaran yang perlu dikirimkan via WhatsApp mencakup: <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong>.
+            <strong>Perlindungan Data Pribadi (PDP):</strong> Nomor NIK dan Nomor HP seluruh pendaftar secara otomatis disensor untuk menjaga privasi masyarakat umum. Persyaratan pendaftaran yang perlu dikirimkan via WhatsApp mencakup: <strong>Foto KTP Asli</strong>, <strong>Foto KK Asli</strong>, dan <strong>Foto diri terbaru (selfi)</strong>.
           </p>
         </div>
       </div>
@@ -595,10 +608,16 @@ export const DataPesertaSection: React.FC<Props> = ({
                 <th scope="col" className="py-3.5 px-4 sm:px-6 w-1/4">
                   Nama Lengkap
                 </th>
-                <th scope="col" className="py-3.5 px-4 sm:px-6 w-2/5">
-                  Alamat
+                <th scope="col" className="py-3.5 px-4 sm:px-6 w-1/3">
+                  <div className="flex items-center gap-1.5">
+                    <span>NIK</span>
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 normal-case">
+                      <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" />
+                      Disensor
+                    </span>
+                  </div>
                 </th>
-                <th scope="col" className="py-3.5 px-4 sm:px-6 w-1/5">
+                <th scope="col" className="py-3.5 px-4 sm:px-6">
                   <div className="flex items-center gap-1.5">
                     <span>No Hp</span>
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 normal-case">
@@ -607,9 +626,14 @@ export const DataPesertaSection: React.FC<Props> = ({
                     </span>
                   </div>
                 </th>
-                <th scope="col" className="py-3.5 px-4 sm:px-6 w-1/5">
+                <th scope="col" className="py-3.5 px-4 sm:px-6">
                   Dokumen
                 </th>
+                {isAdminLoggedIn && (
+                  <th scope="col" className="py-3.5 px-3 sm:px-4 text-center w-28">
+                    Formulir
+                  </th>
+                )}
                 {isAdminLoggedIn && (
                   <th scope="col" className="py-3.5 px-3 sm:px-4 text-center w-12">
                     <span className="sr-only">Aksi</span>
@@ -620,7 +644,7 @@ export const DataPesertaSection: React.FC<Props> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredRegistrants.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdminLoggedIn ? 5 : 4} className="py-12 text-center text-slate-500">
+                  <td colSpan={isAdminLoggedIn ? 6 : 4} className="py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <Users className="w-8 h-8 text-slate-300" />
                       <p className="font-semibold text-slate-700 text-sm">
@@ -651,9 +675,39 @@ export const DataPesertaSection: React.FC<Props> = ({
                         </span>
                       </td>
 
-                      {/* 2. Alamat */}
-                      <td className="py-3.5 px-4 sm:px-6 align-top text-slate-600 leading-relaxed">
-                        <span>{row.alamat}</span>
+                      {/* 2. NIK (Disensor demi privasi seluruh peserta) */}
+                      <td className="py-3.5 px-4 sm:px-6 align-top">
+                        <div className="inline-flex items-center gap-1.5 flex-wrap">
+                          <div className="inline-flex items-center gap-1.5 font-mono font-semibold text-slate-700 cursor-default select-text">
+                            <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span
+                              className={
+                                isMasked
+                                  ? 'tracking-wider text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200'
+                                  : ''
+                              }
+                            >
+                              {isMasked
+                                ? (row.nik ? maskNik(row.nik) : '•••• •••••••• ••••')
+                                : (row.nik || '-')}
+                            </span>
+                          </div>
+
+                          {isAdminLoggedIn && (
+                            <button
+                              type="button"
+                              onClick={() => toggleRowPhoneMask(row.id)}
+                              className="p-1 text-slate-400 hover:text-[#003366] hover:bg-slate-100 rounded-md transition-colors cursor-pointer shrink-0"
+                              title={isMasked ? 'Buka sensor NIK & No HP' : 'Sensor kembali'}
+                            >
+                              {isMasked ? (
+                                <Eye className="w-3.5 h-3.5 text-slate-400 hover:text-slate-700" />
+                              ) : (
+                                <EyeOff className="w-3.5 h-3.5 text-emerald-600 hover:text-emerald-800" />
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* 3. No Hp (Disensor demi privasi seluruh peserta) */}
@@ -740,6 +794,24 @@ export const DataPesertaSection: React.FC<Props> = ({
                         )}
                       </td>
 
+                      {/* 5. Formulir DOCX (Hanya saat admin login) */}
+                      {isAdminLoggedIn && (
+                        <td className="py-3.5 px-3 sm:px-4 align-top text-center whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDocxModalRegistrant(row);
+                              setIsDocxModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#003366]/5 text-[#003366] hover:bg-[#003366] hover:text-white border border-[#003366]/20 hover:border-[#003366] transition-all shadow-2xs cursor-pointer group/docx"
+                            title={`Ekspor Formulir Word (.docx) untuk ${row.namaLengkap}`}
+                          >
+                            <FileDown className="w-3.5 h-3.5 text-[#003366] group-hover/docx:text-white transition-colors" />
+                            <span>DOCX</span>
+                          </button>
+                        </td>
+                      )}
+
                       {/* Admin action column */}
                       {isAdminLoggedIn && (
                         <td className="py-3.5 px-3 sm:px-4 align-top text-center">
@@ -766,7 +838,7 @@ export const DataPesertaSection: React.FC<Props> = ({
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>
-              Nomor HP peserta <strong>disensor otomatis</strong> demi perlindungan data pribadi (PDP).
+              Nomor NIK dan HP peserta <strong>disensor otomatis</strong> demi perlindungan data pribadi (PDP).
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -952,6 +1024,35 @@ export const DataPesertaSection: React.FC<Props> = ({
                 />
               </div>
 
+              {/* NIK & Nama Ibu Kandung */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    No KTP (NIK)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={16}
+                    value={newNik}
+                    onChange={(e) => setNewNik(e.target.value.replace(/\D/g, ''))}
+                    placeholder="16 digit NIK"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366] font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Nama Ibu Kandung
+                  </label>
+                  <input
+                    type="text"
+                    value={newNamaIbuKandung}
+                    onChange={(e) => setNewNamaIbuKandung(e.target.value)}
+                    placeholder="Nama ibu kandung"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366]"
+                  />
+                </div>
+              </div>
+
               {/* Alamat */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1056,6 +1157,22 @@ export const DataPesertaSection: React.FC<Props> = ({
         onConfigSaved={() => {
           loadData();
           setSupabaseConfig(getSupabaseConfig());
+        }}
+      />
+
+      {/* Export to Word (.docx) Modal */}
+      <ExportDocxModal
+        isOpen={isDocxModalOpen}
+        onClose={() => {
+          setIsDocxModalOpen(false);
+          setDocxModalRegistrant(null);
+        }}
+        registrant={docxModalRegistrant}
+        onSaveRegistrant={(updated) => {
+          setRegistrants((prev) =>
+            prev.map((r) => (r.id === updated.id ? updated : r))
+          );
+          setDocxModalRegistrant(updated);
         }}
       />
     </section>

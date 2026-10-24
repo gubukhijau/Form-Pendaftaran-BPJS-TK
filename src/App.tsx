@@ -32,6 +32,7 @@ const initialFormData: RegistrationFormData = {
   alamatRumah: '',
   tempatLahir: '',
   tanggalLahir: '',
+  namaIbuKandung: '',
   nomorHp: '',
   email: '',
   pekerjaan: '',
@@ -162,7 +163,14 @@ export default function App() {
       }
     }
 
-    // 6. Nomor HP
+    // 6. Nama Ibu Kandung
+    if (!formData.namaIbuKandung.trim()) {
+      newErrors.namaIbuKandung = 'Nama ibu kandung wajib diisi sesuai Kartu Keluarga.';
+    } else if (formData.namaIbuKandung.trim().length < 2) {
+      newErrors.namaIbuKandung = 'Nama ibu kandung minimal 2 karakter.';
+    }
+
+    // 7. Nomor HP
     if (!formData.nomorHp.trim()) {
       newErrors.nomorHp = 'Nomor HP / WhatsApp wajib diisi.';
     } else {
@@ -256,21 +264,31 @@ export default function App() {
     }
 
     // 2. Simpan LANGSUNG ke database data peserta dengan status dokumen 'Belum Terlampir'
-    saveRegistrant({
-      namaLengkap: formData.namaLengkap.trim(),
-      alamat: formData.alamatRumah.trim(),
-      noHp: formData.nomorHp.trim(),
-      dokumen: 'Belum Terlampir'
-    });
+    let jobString = formData.pekerjaan || '';
+    if (formData.pekerjaan === 'Tukang') {
+      jobString = `Tukang (${formData.detailPekerjaanTukang || 'Tukang'})`;
+    } else if (formData.pekerjaan === 'Lain-lain') {
+      jobString = formData.detailPekerjaanLain || 'Lain-lain';
+    }
 
-    saveRegistrantAsync({
+    const fullEntryData = {
       namaLengkap: formData.namaLengkap.trim(),
       alamat: formData.alamatRumah.trim(),
       noHp: formData.nomorHp.trim(),
-      dokumen: 'Belum Terlampir'
-    })
+      dokumen: 'Belum Terlampir' as const,
+      nik: formData.nik.trim(),
+      tempatLahir: formData.tempatLahir.trim(),
+      tanggalLahir: formData.tanggalLahir.trim(),
+      namaIbuKandung: formData.namaIbuKandung.trim(),
+      pekerjaan: jobString,
+      email: formData.email.trim(),
+      program: formData.program === 'JKK_JKM' ? 'JKK & JKM' : formData.program === 'JKK_JKM_JHT' ? 'JKK, JKM, dan JHT' : formData.program,
+      periodePembayaran: formData.periodePembayaran
+    };
+
+    saveRegistrantAsync(fullEntryData)
       .catch((err) => {
-        console.error('Error saat menyimpan pendaftaran ke Supabase:', err);
+        console.error('Error saat menyimpan pendaftaran ke database:', err);
       })
       .finally(() => {
         setIsSubmitting(false);

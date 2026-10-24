@@ -12,7 +12,8 @@ import {
   Calendar,
   Coins,
   Camera,
-  MessageCircle
+  MessageCircle,
+  Heart
 } from 'lucide-react';
 
 interface Props {
@@ -93,6 +94,16 @@ export const RegistrationSummary: React.FC<Props> = ({
           <span className="font-bold text-slate-800 text-sm">
             {formData.tempatLahir ? `${formData.tempatLahir}, ` : ''}
             {formData.tanggalLahir ? formatDateToDDMMYYYY(formData.tanggalLahir) : <em className="text-slate-400 font-normal">Belum diisi</em>}
+          </span>
+        </div>
+
+        {/* Nama Ibu Kandung */}
+        <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-2xs">
+          <span className="text-slate-400 text-xs block mb-1 flex items-center gap-1">
+            <Heart className="w-3.5 h-3.5 text-pink-500" /> Nama Ibu Kandung
+          </span>
+          <span className="font-bold text-slate-800 text-sm">
+            {formData.namaIbuKandung || <em className="text-slate-400 font-normal">Belum diisi</em>}
           </span>
         </div>
 

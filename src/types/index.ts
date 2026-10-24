@@ -11,6 +11,15 @@ export interface AdminRegistrant {
   noHp: string;
   dokumen: DocumentStatus;
   createdAt?: string;
+  nik?: string;
+  tempatLahir?: string;
+  tanggalLahir?: string;
+  namaIbuKandung?: string;
+  pekerjaan?: string;
+  pekerjaanSampingan?: string;
+  email?: string;
+  program?: string;
+  periodePembayaran?: number;
 }
 
 export interface SupabaseConfig {
@@ -28,6 +37,7 @@ export interface RegistrationFormData {
   alamatRumah: string;
   tempatLahir: string;
   tanggalLahir: string;
+  namaIbuKandung: string;
   nomorHp: string;
   email: string;
 

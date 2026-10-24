@@ -51,6 +51,7 @@ NIK: ${formData.nik.trim()}
 Alamat Rumah: ${formData.alamatRumah.trim()}
 Tempat Lahir: ${formData.tempatLahir.trim()}
 Tanggal Lahir: ${tglLahirText}
+Nama Ibu Kandung: ${formData.namaIbuKandung ? formData.namaIbuKandung.trim() : '-'}
 Nomor HP: ${formData.nomorHp.trim()}
 Email: ${emailText}
 Pekerjaan: ${jobText}

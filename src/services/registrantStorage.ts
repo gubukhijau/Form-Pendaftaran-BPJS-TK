@@ -79,8 +79,29 @@ export async function fetchAndSyncRegistrants(): Promise<{
   try {
     const remoteData = await fetchRegistrantsFromSupabase();
     if (remoteData !== null) {
-      setLocalRegistrants(remoteData);
-      return { data: remoteData, source: 'supabase' };
+      // Merge with any existing local details (like nik, namaIbuKandung, etc.)
+      const localMap = new Map(getLocalRegistrants().map((item) => [item.id, item]));
+      const mergedData = remoteData.map((remote) => {
+        const local = localMap.get(remote.id);
+        if (local) {
+          return {
+            ...local,
+            ...remote,
+            nik: remote.nik || local.nik,
+            tempatLahir: remote.tempatLahir || local.tempatLahir,
+            tanggalLahir: remote.tanggalLahir || local.tanggalLahir,
+            namaIbuKandung: remote.namaIbuKandung || local.namaIbuKandung,
+            pekerjaan: remote.pekerjaan || local.pekerjaan,
+            pekerjaanSampingan: remote.pekerjaanSampingan || local.pekerjaanSampingan,
+            email: remote.email || local.email,
+            program: remote.program || local.program
+          };
+        }
+        return remote;
+      });
+
+      setLocalRegistrants(mergedData);
+      return { data: mergedData, source: 'supabase' };
     }
   } catch (err) {
     console.warn('Failed to fetch from Supabase, fallback to local', err);
@@ -94,6 +115,7 @@ export async function saveRegistrantAsync(
   const current = getLocalRegistrants();
   const randomSuffix = Math.floor(100000 + Math.random() * 900000);
   const newEntry: AdminRegistrant = {
+    ...data,
     id: `REG-${randomSuffix}`,
     namaLengkap: data.namaLengkap.trim(),
     alamat: data.alamat.trim(),
@@ -121,6 +143,7 @@ export function saveRegistrant(
   const current = getLocalRegistrants();
   const randomSuffix = Math.floor(100000 + Math.random() * 900000);
   const newEntry: AdminRegistrant = {
+    ...data,
     id: `REG-${randomSuffix}`,
     namaLengkap: data.namaLengkap.trim(),
     alamat: data.alamat.trim(),
@@ -153,6 +176,42 @@ export function updateRegistrantDocumentStatus(
   // Background sync to Supabase if configured
   updateRegistrantInSupabase(id, newStatus).catch((err) => {
     console.warn('Background Supabase update error:', err);
+  });
+
+  return updated;
+}
+
+export function updateRegistrantDetails(
+  id: string,
+  details: Partial<AdminRegistrant>
+): AdminRegistrant[] {
+  const current = getLocalRegistrants();
+  const updated = current.map((item) => {
+    if (item.id === id) {
+      return {
+        ...item,
+        ...details,
+        namaLengkap: details.namaLengkap !== undefined ? details.namaLengkap.trim() : item.namaLengkap,
+        alamat: details.alamat !== undefined ? details.alamat.trim() : item.alamat,
+        noHp: details.noHp !== undefined ? details.noHp.trim() : item.noHp,
+        nik: details.nik !== undefined ? details.nik.trim() : item.nik,
+        tempatLahir: details.tempatLahir !== undefined ? details.tempatLahir.trim() : item.tempatLahir,
+        tanggalLahir: details.tanggalLahir !== undefined ? details.tanggalLahir.trim() : item.tanggalLahir,
+        namaIbuKandung: details.namaIbuKandung !== undefined ? details.namaIbuKandung.trim() : item.namaIbuKandung,
+        pekerjaan: details.pekerjaan !== undefined ? details.pekerjaan.trim() : item.pekerjaan,
+        pekerjaanSampingan: details.pekerjaanSampingan !== undefined ? details.pekerjaanSampingan.trim() : item.pekerjaanSampingan,
+        email: details.email !== undefined ? details.email.trim() : item.email,
+        program: details.program !== undefined ? details.program.trim() : item.program
+      };
+    }
+    return item;
+  });
+
+  setLocalRegistrants(updated);
+
+  // Background sync to Supabase and server
+  updateRegistrantInSupabase(id, details).catch((err) => {
+    console.warn('Background update sync error:', err);
   });
 
   return updated;

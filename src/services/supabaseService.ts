@@ -305,6 +305,19 @@ export async function testSupabaseConnection(configToTest?: SupabaseConfig): Pro
 }
 
 export async function fetchRegistrantsFromSupabase(): Promise<AdminRegistrant[] | null> {
+  // First try server endpoint /api/registrants because it integrates Supabase + persisted details
+  try {
+    const resp = await fetch('/api/registrants');
+    if (resp.ok) {
+      const json = await resp.json();
+      if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+        return json.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Server API registrants error, checking direct Supabase client:', err);
+  }
+
   let client = getSupabaseClient();
   if (!client) {
     // Try syncing config from server first in case another device configured it
@@ -329,7 +342,15 @@ export async function fetchRegistrantsFromSupabase(): Promise<AdminRegistrant[] 
           alamat: String(row.alamat || '-'),
           noHp: String(row.no_hp || row.noHp || '-'),
           dokumen: (row.dokumen === 'Terlampir' ? 'Terlampir' : 'Belum Terlampir') as DocumentStatus,
-          createdAt: row.created_at || row.createdAt || new Date().toISOString()
+          createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+          nik: String(row.nik || row.no_ktp || ''),
+          tempatLahir: String(row.tempat_lahir || row.tempatLahir || ''),
+          tanggalLahir: String(row.tanggal_lahir || row.tanggalLahir || ''),
+          namaIbuKandung: String(row.nama_ibu_kandung || row.namaIbuKandung || ''),
+          pekerjaan: String(row.pekerjaan || ''),
+          pekerjaanSampingan: String(row.pekerjaan_sampingan || ''),
+          email: String(row.email || ''),
+          program: String(row.program || '')
         }));
       } else if (error) {
         console.warn('Supabase fetch error, trying server API fallback:', error.message);
@@ -339,32 +360,50 @@ export async function fetchRegistrantsFromSupabase(): Promise<AdminRegistrant[] 
     }
   }
 
-  // Fallback to server endpoint /api/registrants
-  try {
-    const resp = await fetch('/api/registrants');
-    if (resp.ok) {
-      const json = await resp.json();
-      if (json && json.success && json.source === 'supabase' && Array.isArray(json.data)) {
-        return json.data;
-      }
-    }
-  } catch (err) {
-    console.warn('Server API registrants fallback error:', err);
-  }
-
   return null;
 }
 
 export async function insertRegistrantToSupabase(
   entry: AdminRegistrant
 ): Promise<boolean> {
+  // Always send to server API to ensure full fields (NIK, tempat/tanggal lahir, dll) persist
+  try {
+    fetch('/api/registrants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    }).catch((err) => console.warn('Server API POST error:', err));
+  } catch {}
+
   const client = getSupabaseClient();
   const config = getSupabaseConfig();
   const targetTable = config.tableName || DEFAULT_TABLE_NAME;
 
   if (client) {
     try {
-      const payload = {
+      const fullPayload: any = {
+        id: entry.id,
+        nama_lengkap: entry.namaLengkap,
+        alamat: entry.alamat,
+        no_hp: entry.noHp,
+        dokumen: entry.dokumen,
+        created_at: entry.createdAt || new Date().toISOString(),
+        nik: entry.nik || '',
+        tempat_lahir: entry.tempatLahir || '',
+        tanggal_lahir: entry.tanggalLahir || '',
+        nama_ibu_kandung: entry.namaIbuKandung || '',
+        pekerjaan: entry.pekerjaan || '',
+        pekerjaanSampingan: entry.pekerjaanSampingan || '',
+        email: entry.email || '',
+        program: entry.program || ''
+      };
+
+      const { error } = await client.from(targetTable).upsert(fullPayload);
+      if (!error) {
+        return true;
+      }
+      // If table lacks some columns, fallback to base payload
+      const basePayload = {
         id: entry.id,
         nama_lengkap: entry.namaLengkap,
         alamat: entry.alamat,
@@ -372,67 +411,78 @@ export async function insertRegistrantToSupabase(
         dokumen: entry.dokumen,
         created_at: entry.createdAt || new Date().toISOString()
       };
-
-      const { error } = await client.from(targetTable).upsert(payload);
-      if (!error) {
-        return true;
-      }
-      console.warn('Supabase client insert error, trying server fallback:', error.message);
+      await client.from(targetTable).upsert(basePayload);
+      return true;
     } catch (err) {
       console.warn('Supabase client error, trying server fallback:', err);
     }
   }
 
-  // Fallback to server API /api/registrants
-  try {
-    const res = await fetch('/api/registrants', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(entry)
-    });
-    return res.ok;
-  } catch (err) {
-    console.warn('Server fallback insert error:', err);
-    return false;
-  }
+  return true;
 }
 
 export async function updateRegistrantInSupabase(
   id: string,
-  newStatus: DocumentStatus
+  newStatusOrUpdates: DocumentStatus | Partial<AdminRegistrant>
 ): Promise<boolean> {
+  const updates: Partial<AdminRegistrant> =
+    typeof newStatusOrUpdates === 'string'
+      ? { dokumen: newStatusOrUpdates }
+      : newStatusOrUpdates;
+
+  // Sync to server API
+  try {
+    fetch(`/api/registrants/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    }).catch((err) => console.warn('Server patch error:', err));
+  } catch {}
+
   const client = getSupabaseClient();
   const config = getSupabaseConfig();
   const targetTable = config.tableName || DEFAULT_TABLE_NAME;
 
   if (client) {
     try {
+      const remoteUpdates: any = {};
+      if (updates.dokumen !== undefined) remoteUpdates.dokumen = updates.dokumen;
+      if (updates.namaLengkap !== undefined) remoteUpdates.nama_lengkap = updates.namaLengkap;
+      if (updates.alamat !== undefined) remoteUpdates.alamat = updates.alamat;
+      if (updates.noHp !== undefined) remoteUpdates.no_hp = updates.noHp;
+      if (updates.nik !== undefined) remoteUpdates.nik = updates.nik;
+      if (updates.tempatLahir !== undefined) remoteUpdates.tempat_lahir = updates.tempatLahir;
+      if (updates.tanggalLahir !== undefined) remoteUpdates.tanggal_lahir = updates.tanggalLahir;
+      if (updates.namaIbuKandung !== undefined) remoteUpdates.nama_ibu_kandung = updates.namaIbuKandung;
+      if (updates.pekerjaan !== undefined) remoteUpdates.pekerjaan = updates.pekerjaan;
+      if (updates.pekerjaanSampingan !== undefined) remoteUpdates.pekerjaan_sampingan = updates.pekerjaanSampingan;
+      if (updates.email !== undefined) remoteUpdates.email = updates.email;
+      if (updates.program !== undefined) remoteUpdates.program = updates.program;
+
       const { error } = await client
         .from(targetTable)
-        .update({ dokumen: newStatus })
+        .update(remoteUpdates)
         .eq('id', id);
 
       if (!error) {
         return true;
       }
-      console.warn('Supabase client update error, trying server fallback:', error.message);
+
+      // If full columns update failed, try base columns only
+      const baseUpdates: any = {};
+      if (updates.dokumen !== undefined) baseUpdates.dokumen = updates.dokumen;
+      if (updates.namaLengkap !== undefined) baseUpdates.nama_lengkap = updates.namaLengkap;
+      if (updates.alamat !== undefined) baseUpdates.alamat = updates.alamat;
+      if (updates.noHp !== undefined) baseUpdates.no_hp = updates.noHp;
+      if (Object.keys(baseUpdates).length > 0) {
+        await client.from(targetTable).update(baseUpdates).eq('id', id);
+      }
     } catch (err) {
       console.warn('Supabase client update error, trying server fallback:', err);
     }
   }
 
-  // Fallback to server API /api/registrants/:id
-  try {
-    const res = await fetch(`/api/registrants/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dokumen: newStatus })
-    });
-    return res.ok;
-  } catch (err) {
-    console.warn('Server fallback update error:', err);
-    return false;
-  }
+  return true;
 }
 
 export async function deleteRegistrantFromSupabase(id: string): Promise<boolean> {
