@@ -102,6 +102,7 @@ export const DataPesertaSection: React.FC<Props> = ({
   const [newNamaIbuKandung, setNewNamaIbuKandung] = useState('');
   const [newAlamat, setNewAlamat] = useState('');
   const [newNoHp, setNewNoHp] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [newDokumen, setNewDokumen] = useState<DocumentStatus>('Belum Terlampir');
   const [formError, setFormError] = useState('');
 
@@ -293,7 +294,8 @@ export const DataPesertaSection: React.FC<Props> = ({
       noHp: newNoHp.trim(),
       dokumen: newDokumen,
       namaIbuKandung: newNamaIbuKandung.trim(),
-      nik: newNik.trim()
+      nik: newNik.trim(),
+      email: newEmail.trim()
     });
 
     setRegistrants([created, ...registrants]);
@@ -302,6 +304,7 @@ export const DataPesertaSection: React.FC<Props> = ({
     setNewNamaIbuKandung('');
     setNewAlamat('');
     setNewNoHp('');
+    setNewEmail('');
     setNewDokumen('Belum Terlampir');
     setFormError('');
     setIsAddModalOpen(false);
@@ -1077,6 +1080,21 @@ export const DataPesertaSection: React.FC<Props> = ({
                   value={newNoHp}
                   onChange={(e) => setNewNoHp(e.target.value)}
                   placeholder="Contoh: 081234567890"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366]"
+                />
+              </div>
+
+              {/* Email Peserta */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Email Peserta (Opsional)</span>
+                </label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Contoh: peserta@gmail.com"
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366]"
                 />
               </div>

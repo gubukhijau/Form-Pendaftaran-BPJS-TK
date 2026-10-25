@@ -1,6 +1,7 @@
 import { AdminRegistrant, DocumentStatus } from '../types';
 import {
   fetchRegistrantsFromSupabase,
+  fetchSingleRegistrantFromSupabase,
   insertRegistrantToSupabase,
   updateRegistrantInSupabase,
   deleteRegistrantFromSupabase,
@@ -107,6 +108,49 @@ export async function fetchAndSyncRegistrants(): Promise<{
     console.warn('Failed to fetch from Supabase, fallback to local', err);
   }
   return { data: getLocalRegistrants(), source: 'local' };
+}
+
+export async function syncSingleRegistrant(
+  id: string,
+  nameFallback?: string
+): Promise<AdminRegistrant | null> {
+  try {
+    const remote = await fetchSingleRegistrantFromSupabase(id, nameFallback);
+    if (remote) {
+      const current = getLocalRegistrants();
+      let found = false;
+      const updated = current.map((item) => {
+        const matchesId = item.id === id || item.id === remote.id;
+        const matchesName = nameFallback && item.namaLengkap.trim().toLowerCase() === nameFallback.trim().toLowerCase();
+        if (matchesId || matchesName) {
+          found = true;
+          return {
+            ...item,
+            ...remote,
+            nik: remote.nik || item.nik,
+            tempatLahir: remote.tempatLahir || item.tempatLahir,
+            tanggalLahir: remote.tanggalLahir || item.tanggalLahir,
+            namaIbuKandung: remote.namaIbuKandung || item.namaIbuKandung,
+            pekerjaan: remote.pekerjaan || item.pekerjaan,
+            pekerjaanSampingan: remote.pekerjaanSampingan || item.pekerjaanSampingan,
+            email: remote.email || item.email,
+            program: remote.program || item.program
+          };
+        }
+        return item;
+      });
+
+      if (!found) {
+        updated.unshift(remote);
+      }
+
+      setLocalRegistrants(updated);
+      return remote;
+    }
+  } catch (err) {
+    console.warn('Sync single registrant error:', err);
+  }
+  return null;
 }
 
 export async function saveRegistrantAsync(

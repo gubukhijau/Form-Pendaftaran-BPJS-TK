@@ -5,7 +5,7 @@ import {
   prepareParticipantDetails,
   exportParticipantToDocx
 } from '../services/docxExportService';
-import { updateRegistrantDetails } from '../services/registrantStorage';
+import { updateRegistrantDetails, syncSingleRegistrant } from '../services/registrantStorage';
 import {
   FileText,
   Download,
@@ -23,7 +23,8 @@ import {
   Loader2,
   Check,
   Database,
-  Save
+  Save,
+  RefreshCw
 } from 'lucide-react';
 
 interface Props {
@@ -58,15 +59,37 @@ export const ExportDocxModal: React.FC<Props> = ({
   );
   const [isExporting, setIsExporting] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
+  const [isSyncingWithDb, setIsSyncingWithDb] = useState(false);
+  const [dbSyncedTime, setDbSyncedTime] = useState<string | null>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const syncLatestFromDatabase = async (target: AdminRegistrant) => {
+    setIsSyncingWithDb(true);
+    try {
+      const fresh = await syncSingleRegistrant(target.id, target.namaLengkap);
+      if (fresh) {
+        setDetails(prepareParticipantDetails(fresh));
+        setDbSyncedTime(new Date().toLocaleTimeString('id-ID'));
+        if (onSaveRegistrant) {
+          onSaveRegistrant(fresh);
+        }
+      }
+    } catch (err) {
+      console.warn('Auto sync with Supabase caught error:', err);
+    } finally {
+      setIsSyncingWithDb(false);
+    }
+  };
+
   useEffect(() => {
-    if (registrant) {
+    if (registrant && isOpen) {
       setDetails(prepareParticipantDetails(registrant));
       setSaveSuccessMessage('');
+      // Otomatis sinkronkan data terbaru dari database Supabase
+      syncLatestFromDatabase(registrant);
     }
-  }, [registrant]);
+  }, [registrant?.id, isOpen]);
 
   if (!isOpen || !registrant) return null;
 
@@ -101,7 +124,7 @@ export const ExportDocxModal: React.FC<Props> = ({
     setIsSavingDb(true);
     try {
       persistToDatabase();
-      setSaveSuccessMessage('Data NIK, TTL & rincian peserta berhasil disimpan ke database!');
+      setSaveSuccessMessage('Data NIK, TTL, Email & rincian peserta berhasil disimpan ke database!');
       setTimeout(() => setSaveSuccessMessage(''), 3000);
     } finally {
       setIsSavingDb(false);
@@ -111,7 +134,7 @@ export const ExportDocxModal: React.FC<Props> = ({
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      // 1. Simpan NIK, Tempat/Tanggal Lahir ke database secara otomatis
+      // 1. Simpan NIK, Tempat/Tanggal Lahir, Email ke database secara otomatis
       persistToDatabase();
 
       // 2. Buat dan unduh dokumen DOCX
@@ -141,11 +164,25 @@ export const ExportDocxModal: React.FC<Props> = ({
             <X className="w-4 h-4" />
           </button>
 
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-semibold text-emerald-200 uppercase tracking-wider">
-              Ekspor Dokumen Resmi (.docx)
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2 pr-10">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-semibold text-emerald-200 uppercase tracking-wider">
+                Ekspor Dokumen Resmi (.docx)
+              </span>
+            </div>
+
+            {/* Tombol Sinkron Otomatis Supabase */}
+            <button
+              type="button"
+              onClick={() => syncLatestFromDatabase(registrant)}
+              disabled={isSyncingWithDb}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 active:bg-white/30 text-[11px] font-bold text-white transition-all cursor-pointer border border-white/20"
+              title="Perbarui & sinkronkan ulang data dari database Supabase"
+            >
+              <RefreshCw className={`w-3 h-3 text-emerald-300 ${isSyncingWithDb ? 'animate-spin' : ''}`} />
+              <span>{isSyncingWithDb ? 'Menyinkronkan DB...' : 'Singkronkan Database'}</span>
+            </button>
           </div>
 
           <h3 className="text-lg sm:text-xl font-extrabold text-white leading-snug flex items-center gap-2">
@@ -166,8 +203,35 @@ export const ExportDocxModal: React.FC<Props> = ({
             </div>
           )}
 
-          <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-3.5 text-xs text-blue-900">
-            <strong>Data Tersinkronisasi ke Database:</strong> Isian NIK, Tempat & Tanggal Lahir, serta Nama Ibu Kandung akan otomatis tersimpan ke database peserta saat Anda mengklik <em>Simpan ke Database</em> atau <em>Simpan & Unduh DOCX</em>.
+          {/* Banner status sinkronisasi Supabase */}
+          <div className="bg-gradient-to-r from-emerald-50 to-sky-50 border border-emerald-200/90 rounded-2xl p-3.5 text-xs text-slate-800 flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800 shrink-0 mt-0.5">
+              <Database className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <span>Sinkronisasi Otomatis Database Supabase</span>
+                  {isSyncingWithDb ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Sedang mengambil data...
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      <Check className="w-2.5 h-2.5" /> Terhubung
+                    </span>
+                  )}
+                </span>
+                {dbSyncedTime && (
+                  <span className="text-[10px] text-slate-500 font-medium">
+                    Sinkron: {dbSyncedTime}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                Isian NIK, Tempat & Tanggal Lahir, Nama Ibu Kandung, dan Email tersinkronisasi otomatis dengan database Supabase saat formulir ini dibuka atau diedit.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">

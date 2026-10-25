@@ -122,6 +122,26 @@ function upsertStoredRegistrantDetail(id: string, detail: any) {
   }
 }
 
+function mapRegistrantRow(row: any, detail: any = {}) {
+  const targetId = String(row.id || detail.id || `REG-${Date.now()}`);
+  return {
+    id: targetId,
+    namaLengkap: String(row.nama_lengkap || row.namaLengkap || row.nama || detail.namaLengkap || '-'),
+    alamat: String(row.alamat || detail.alamat || '-'),
+    noHp: String(row.no_hp || row.noHp || row.telepon || detail.noHp || '-'),
+    dokumen: (row.dokumen === 'Terlampir' || detail.dokumen === 'Terlampir') ? 'Terlampir' : 'Belum Terlampir',
+    createdAt: row.created_at || row.createdAt || detail.createdAt || new Date().toISOString(),
+    nik: String(row.nik || row.no_ktp || row.ktp || detail.nik || ''),
+    tempatLahir: String(row.tempat_lahir || row.tempatLahir || detail.tempatLahir || ''),
+    tanggalLahir: String(row.tanggal_lahir || row.tanggalLahir || row.tgl_lahir || detail.tanggalLahir || ''),
+    namaIbuKandung: String(row.nama_ibu_kandung || row.namaIbuKandung || row.nama_ibu || detail.namaIbuKandung || ''),
+    pekerjaan: String(row.pekerjaan || row.pekerjaan_utama || detail.pekerjaan || ''),
+    pekerjaanSampingan: String(row.pekerjaan_sampingan || detail.pekerjaanSampingan || ''),
+    email: String(row.email || row.surel || detail.email || ''),
+    program: String(row.program || row.program_bpjs || detail.program || '')
+  };
+}
+
 // GET /api/registrants - Returns list of registrants with full details
 app.get('/api/registrants', async (_req, res) => {
   const detailsMap = getStoredRegistrantDetails();
@@ -137,22 +157,7 @@ app.get('/api/registrants', async (_req, res) => {
       if (!error && Array.isArray(data)) {
         const formatted = data.map((row: any) => {
           const detail = detailsMap[row.id] || {};
-          return {
-            id: String(row.id || `REG-${Date.now()}`),
-            namaLengkap: String(row.nama_lengkap || row.namaLengkap || detail.namaLengkap || '-'),
-            alamat: String(row.alamat || detail.alamat || '-'),
-            noHp: String(row.no_hp || row.noHp || detail.noHp || '-'),
-            dokumen: row.dokumen === 'Terlampir' ? 'Terlampir' : 'Belum Terlampir',
-            createdAt: row.created_at || row.createdAt || detail.createdAt || new Date().toISOString(),
-            nik: String(row.nik || row.no_ktp || detail.nik || ''),
-            tempatLahir: String(row.tempat_lahir || row.tempatLahir || detail.tempatLahir || ''),
-            tanggalLahir: String(row.tanggal_lahir || row.tanggalLahir || detail.tanggalLahir || ''),
-            namaIbuKandung: String(row.nama_ibu_kandung || row.namaIbuKandung || detail.namaIbuKandung || ''),
-            pekerjaan: String(row.pekerjaan || detail.pekerjaan || ''),
-            pekerjaanSampingan: String(row.pekerjaan_sampingan || detail.pekerjaanSampingan || ''),
-            email: String(row.email || detail.email || ''),
-            program: String(row.program || detail.program || '')
-          };
+          return mapRegistrantRow(row, detail);
         });
         return res.json({ success: true, source: 'supabase', data: formatted });
       } else if (error) {
@@ -166,6 +171,53 @@ app.get('/api/registrants', async (_req, res) => {
   // Fallback to local stored details if Supabase is offline or unconfigured
   const localList = Object.values(detailsMap);
   return res.json({ success: true, source: 'local', data: localList });
+});
+
+// GET /api/registrants/:id - Fetch single participant with fresh Supabase sync
+app.get('/api/registrants/:id', async (req, res) => {
+  const { id } = req.params;
+  const detailsMap = getStoredRegistrantDetails();
+  const detail = detailsMap[id] || {};
+  const ctx = getSupabaseAdminClient();
+
+  if (ctx) {
+    try {
+      const { data, error } = await ctx.client
+        .from(ctx.table)
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!error && data) {
+        const formatted = mapRegistrantRow(data, detail);
+        return res.json({ success: true, source: 'supabase', data: formatted });
+      }
+
+      // If not found by ID, try searching by name if query string 'nama' is supplied
+      const queryName = typeof req.query.nama === 'string' ? req.query.nama.trim() : '';
+      if (queryName) {
+        const { data: nameData, error: nameError } = await ctx.client
+          .from(ctx.table)
+          .select('*')
+          .ilike('nama_lengkap', `%${queryName}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (!nameError && nameData) {
+          const formatted = mapRegistrantRow(nameData, detail);
+          return res.json({ success: true, source: 'supabase', data: formatted });
+        }
+      }
+    } catch (err: any) {
+      console.warn('Error fetching single registrant from Supabase:', err.message);
+    }
+  }
+
+  if (detail && (detail.id || detail.namaLengkap)) {
+    return res.json({ success: true, source: 'local', data: detail });
+  }
+
+  return res.status(404).json({ success: false, error: 'Registrant not found' });
 });
 
 // POST /api/registrants - Upsert a registrant into database

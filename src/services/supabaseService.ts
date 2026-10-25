@@ -363,6 +363,81 @@ export async function fetchRegistrantsFromSupabase(): Promise<AdminRegistrant[] 
   return null;
 }
 
+export async function fetchSingleRegistrantFromSupabase(
+  id: string,
+  nameFallback?: string
+): Promise<AdminRegistrant | null> {
+  // 1. Try server endpoint /api/registrants/:id
+  try {
+    const url = `/api/registrants/${encodeURIComponent(id)}${nameFallback ? `?nama=${encodeURIComponent(nameFallback)}` : ''}`;
+    const resp = await fetch(url);
+    if (resp.ok) {
+      const json = await resp.json();
+      if (json && json.success && json.data) {
+        return json.data as AdminRegistrant;
+      }
+    }
+  } catch (err) {
+    console.warn('Server API single registrant error:', err);
+  }
+
+  // 2. Direct Supabase query fallback
+  let client = getSupabaseClient();
+  if (!client) {
+    await syncSupabaseConfigFromServer();
+    client = getSupabaseClient();
+  }
+
+  if (client) {
+    const config = getSupabaseConfig();
+    const targetTable = config.tableName || DEFAULT_TABLE_NAME;
+
+    try {
+      let { data, error } = await client
+        .from(targetTable)
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if ((!data || error) && nameFallback) {
+        const { data: nameData, error: nameErr } = await client
+          .from(targetTable)
+          .select('*')
+          .ilike('nama_lengkap', `%${nameFallback.trim()}%`)
+          .limit(1)
+          .maybeSingle();
+        if (!nameErr && nameData) {
+          data = nameData;
+          error = null;
+        }
+      }
+
+      if (!error && data) {
+        return {
+          id: String(data.id || id),
+          namaLengkap: String(data.nama_lengkap || data.namaLengkap || data.nama || '-'),
+          alamat: String(data.alamat || '-'),
+          noHp: String(data.no_hp || data.noHp || data.telepon || '-'),
+          dokumen: (data.dokumen === 'Terlampir' ? 'Terlampir' : 'Belum Terlampir') as DocumentStatus,
+          createdAt: data.created_at || data.createdAt || new Date().toISOString(),
+          nik: String(data.nik || data.no_ktp || data.ktp || ''),
+          tempatLahir: String(data.tempat_lahir || data.tempatLahir || ''),
+          tanggalLahir: String(data.tanggal_lahir || data.tanggalLahir || data.tgl_lahir || ''),
+          namaIbuKandung: String(data.nama_ibu_kandung || data.namaIbuKandung || data.nama_ibu || ''),
+          pekerjaan: String(data.pekerjaan || data.pekerjaan_utama || ''),
+          pekerjaanSampingan: String(data.pekerjaan_sampingan || ''),
+          email: String(data.email || data.surel || ''),
+          program: String(data.program || data.program_bpjs || '')
+        };
+      }
+    } catch (err) {
+      console.warn('Direct Supabase single fetch error:', err);
+    }
+  }
+
+  return null;
+}
+
 export async function insertRegistrantToSupabase(
   entry: AdminRegistrant
 ): Promise<boolean> {
