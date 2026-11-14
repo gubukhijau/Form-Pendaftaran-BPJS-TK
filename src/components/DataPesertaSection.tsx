@@ -46,6 +46,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { ExportDocxModal } from './ExportDocxModal';
+import { WhatsAppIuranModal } from './WhatsAppIuranModal';
 
 interface Props {
   isAdminLoggedIn?: boolean;
@@ -95,6 +96,10 @@ export const DataPesertaSection: React.FC<Props> = ({
   // Docx Export Modal state
   const [docxModalRegistrant, setDocxModalRegistrant] = useState<AdminRegistrant | null>(null);
   const [isDocxModalOpen, setIsDocxModalOpen] = useState(false);
+
+  // WhatsApp Iuran Modal state
+  const [waIuranRegistrant, setWaIuranRegistrant] = useState<AdminRegistrant | null>(null);
+  const [isWaIuranModalOpen, setIsWaIuranModalOpen] = useState(false);
 
   // Add manual registrant form state
   const [newNama, setNewNama] = useState('');
@@ -721,10 +726,34 @@ export const DataPesertaSection: React.FC<Props> = ({
                           >
                             <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             <span
+                              role={isAdminLoggedIn ? 'button' : undefined}
+                              tabIndex={isAdminLoggedIn ? 0 : undefined}
+                              onClick={() => {
+                                if (isAdminLoggedIn) {
+                                  setWaIuranRegistrant(row);
+                                  setIsWaIuranModalOpen(true);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (isAdminLoggedIn && (e.key === 'Enter' || e.key === ' ')) {
+                                  e.preventDefault();
+                                  setWaIuranRegistrant(row);
+                                  setIsWaIuranModalOpen(true);
+                                }
+                              }}
+                              title={
+                                isAdminLoggedIn
+                                  ? `Klik untuk kirim form pembayaran iuran ke WhatsApp ${row.namaLengkap}`
+                                  : undefined
+                              }
                               className={
-                                isMasked
-                                  ? 'tracking-wider text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200'
-                                  : ''
+                                isAdminLoggedIn
+                                  ? isMasked
+                                    ? 'tracking-wider text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition-colors'
+                                    : 'cursor-pointer text-emerald-700 hover:text-emerald-800 hover:underline decoration-emerald-500/70 underline-offset-2 transition-colors'
+                                  : isMasked
+                                    ? 'tracking-wider text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200'
+                                    : ''
                               }
                             >
                               {isMasked ? maskPhoneNumber(row.noHp) : row.noHp}
@@ -1192,6 +1221,16 @@ export const DataPesertaSection: React.FC<Props> = ({
           );
           setDocxModalRegistrant(updated);
         }}
+      />
+
+      {/* WhatsApp Iuran Payment Reminder Modal */}
+      <WhatsAppIuranModal
+        isOpen={isWaIuranModalOpen}
+        onClose={() => {
+          setIsWaIuranModalOpen(false);
+          setWaIuranRegistrant(null);
+        }}
+        registrant={waIuranRegistrant}
       />
     </section>
   );
