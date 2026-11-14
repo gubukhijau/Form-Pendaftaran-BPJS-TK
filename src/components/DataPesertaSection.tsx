@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AdminRegistrant, DocumentStatus, maskPhoneNumber, maskNik } from '../types';
+import { AdminRegistrant, DocumentStatus, PaymentStatus, maskPhoneNumber, maskNik } from '../types';
 import {
   getRegistrants,
   updateRegistrantDocumentStatus,
+  updateRegistrantPaymentStatus,
   deleteRegistrant,
   saveRegistrant,
   fetchAndSyncRegistrants
@@ -69,6 +70,7 @@ export const DataPesertaSection: React.FC<Props> = ({
   const [registrants, setRegistrants] = useState<AdminRegistrant[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Semua' | DocumentStatus>('Semua');
+  const [paymentFilter, setPaymentFilter] = useState<'Semua' | PaymentStatus>('Semua');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -276,6 +278,16 @@ export const DataPesertaSection: React.FC<Props> = ({
     setRegistrants(updated);
   };
 
+  const handlePaymentToggle = (id: string, checked: boolean) => {
+    if (!isAdminLoggedIn) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    const nextStatus: PaymentStatus = checked ? 'Sudah Membayar' : 'Belum Membayar';
+    const updated = updateRegistrantPaymentStatus(id, nextStatus);
+    setRegistrants(updated);
+  };
+
   const handleDelete = (id: string) => {
     if (!isAdminLoggedIn) {
       setIsLoginModalOpen(true);
@@ -325,26 +337,41 @@ export const DataPesertaSection: React.FC<Props> = ({
       const matchStatus =
         statusFilter === 'Semua' ? true : item.dokumen === statusFilter;
 
-      return matchSearch && matchStatus;
+      const rowPayment: PaymentStatus =
+        item.statusPembayaran === 'Sudah Membayar' ? 'Sudah Membayar' : 'Belum Membayar';
+      const matchPayment =
+        !isAdminLoggedIn || paymentFilter === 'Semua' ? true : rowPayment === paymentFilter;
+
+      return matchSearch && matchStatus && matchPayment;
     });
-  }, [registrants, searchQuery, statusFilter]);
+  }, [registrants, searchQuery, statusFilter, paymentFilter, isAdminLoggedIn]);
 
   const stats = useMemo(() => {
     const total = registrants.length;
     const terlampir = registrants.filter((r) => r.dokumen === 'Terlampir').length;
     const belumTerlampir = registrants.filter((r) => r.dokumen === 'Belum Terlampir').length;
-    return { total, terlampir, belumTerlampir };
+    const sudahBayar = registrants.filter((r) => r.statusPembayaran === 'Sudah Membayar').length;
+    const belumBayar = total - sudahBayar;
+    return { total, terlampir, belumTerlampir, sudahBayar, belumBayar };
   }, [registrants]);
 
   const exportToCSV = () => {
     if (registrants.length === 0) return;
-    const headers = ['Nama Lengkap', 'Alamat', 'No Hp', 'Dokumen'];
-    const rows = registrants.map((r) => [
-      `"${r.namaLengkap.replace(/"/g, '""')}"`,
-      `"${r.alamat.replace(/"/g, '""')}"`,
-      `"${!isAdminLoggedIn || isGlobalMaskingEnabled ? maskPhoneNumber(r.noHp) : r.noHp}"`,
-      `"${r.dokumen}"`
-    ]);
+    const headers = isAdminLoggedIn
+      ? ['Nama Lengkap', 'Alamat', 'No Hp', 'Dokumen', 'Status Pembayaran']
+      : ['Nama Lengkap', 'Alamat', 'No Hp', 'Dokumen'];
+    const rows = registrants.map((r) => {
+      const base = [
+        `"${r.namaLengkap.replace(/"/g, '""')}"`,
+        `"${r.alamat.replace(/"/g, '""')}"`,
+        `"${!isAdminLoggedIn || isGlobalMaskingEnabled ? maskPhoneNumber(r.noHp) : r.noHp}"`,
+        `"${r.dokumen}"`
+      ];
+      if (isAdminLoggedIn) {
+        base.push(`"${r.statusPembayaran === 'Sudah Membayar' ? 'Sudah Membayar' : 'Belum Membayar'}"`);
+      }
+      return base;
+    });
 
     const csvContent =
       'data:text/csv;charset=utf-8,\uFEFF' +
@@ -580,32 +607,60 @@ export const DataPesertaSection: React.FC<Props> = ({
             </p>
           </div>
 
-          {/* Admin Sensor Toggle if logged in */}
+          {/* Admin controls in table header: Payment filter + Sensor toggle */}
           {isAdminLoggedIn && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsGlobalMaskingEnabled((prev) => !prev);
-                setRevealedPhoneIds({});
-              }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                isGlobalMaskingEnabled
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                  : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
-              }`}
-            >
-              {isGlobalMaskingEnabled ? (
-                <>
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Mode Admin: Sensor Aktif</span>
-                </>
-              ) : (
-                <>
-                  <Eye className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Mode Admin: Buka Seluruh Sensor</span>
-                </>
-              )}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                {(['Semua', 'Sudah Membayar', 'Belum Membayar'] as const).map((payOpt) => {
+                  const active = paymentFilter === payOpt;
+                  return (
+                    <button
+                      key={payOpt}
+                      type="button"
+                      onClick={() => setPaymentFilter(payOpt)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                        active
+                          ? payOpt === 'Sudah Membayar'
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : payOpt === 'Belum Membayar'
+                              ? 'bg-amber-600 text-white shadow-2xs'
+                              : 'bg-[#003366] text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {payOpt === 'Semua' && 'Semua Bayar'}
+                      {payOpt === 'Sudah Membayar' && `Sudah Bayar (${stats.sudahBayar})`}
+                      {payOpt === 'Belum Membayar' && `Belum Bayar (${stats.belumBayar})`}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGlobalMaskingEnabled((prev) => !prev);
+                  setRevealedPhoneIds({});
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  isGlobalMaskingEnabled
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                    : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                }`}
+              >
+                {isGlobalMaskingEnabled ? (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Mode Admin: Sensor Aktif</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Mode Admin: Buka Seluruh Sensor</span>
+                  </>
+                )}
+              </button>
+            </div>
           )}
         </div>
 
@@ -613,17 +668,8 @@ export const DataPesertaSection: React.FC<Props> = ({
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>
               <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
-                <th scope="col" className="py-3.5 px-4 sm:px-6 w-1/4">
-                  Nama Lengkap
-                </th>
                 <th scope="col" className="py-3.5 px-4 sm:px-6 w-1/3">
-                  <div className="flex items-center gap-1.5">
-                    <span>NIK</span>
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 normal-case">
-                      <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" />
-                      Disensor
-                    </span>
-                  </div>
+                  Nama Lengkap
                 </th>
                 <th scope="col" className="py-3.5 px-4 sm:px-6">
                   <div className="flex items-center gap-1.5">
@@ -637,6 +683,11 @@ export const DataPesertaSection: React.FC<Props> = ({
                 <th scope="col" className="py-3.5 px-4 sm:px-6">
                   Dokumen
                 </th>
+                {isAdminLoggedIn && (
+                  <th scope="col" className="py-3.5 px-3 sm:px-4 text-center whitespace-nowrap">
+                    Pembayaran
+                  </th>
+                )}
                 {isAdminLoggedIn && (
                   <th scope="col" className="py-3.5 px-3 sm:px-4 text-center w-28">
                     Formulir
@@ -652,15 +703,15 @@ export const DataPesertaSection: React.FC<Props> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredRegistrants.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdminLoggedIn ? 6 : 4} className="py-12 text-center text-slate-500">
+                  <td colSpan={isAdminLoggedIn ? 6 : 3} className="py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <Users className="w-8 h-8 text-slate-300" />
                       <p className="font-semibold text-slate-700 text-sm">
                         Tidak ada catatan pendaftar yang cocok
                       </p>
                       <p className="text-xs text-slate-400">
-                        {searchQuery || statusFilter !== 'Semua'
-                          ? 'Coba ganti kata kunci pencarian atau ubah filter status dokumen.'
+                        {searchQuery || statusFilter !== 'Semua' || (isAdminLoggedIn && paymentFilter !== 'Semua')
+                          ? 'Coba ganti kata kunci pencarian atau ubah filter status.'
                           : 'Belum ada data pendaftar yang tercatat.'}
                       </p>
                     </div>
@@ -669,6 +720,7 @@ export const DataPesertaSection: React.FC<Props> = ({
               ) : (
                 filteredRegistrants.map((row) => {
                   const isTerlampir = row.dokumen === 'Terlampir';
+                  const isSudahBayar = row.statusPembayaran === 'Sudah Membayar';
                   const isMasked = isRowPhoneMasked(row.id);
 
                   return (
@@ -683,42 +735,7 @@ export const DataPesertaSection: React.FC<Props> = ({
                         </span>
                       </td>
 
-                      {/* 2. NIK (Disensor demi privasi seluruh peserta) */}
-                      <td className="py-3.5 px-4 sm:px-6 align-top">
-                        <div className="inline-flex items-center gap-1.5 flex-wrap">
-                          <div className="inline-flex items-center gap-1.5 font-mono font-semibold text-slate-700 cursor-default select-text">
-                            <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span
-                              className={
-                                isMasked
-                                  ? 'tracking-wider text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200'
-                                  : ''
-                              }
-                            >
-                              {isMasked
-                                ? (row.nik ? maskNik(row.nik) : '•••• •••••••• ••••')
-                                : (row.nik || '-')}
-                            </span>
-                          </div>
-
-                          {isAdminLoggedIn && (
-                            <button
-                              type="button"
-                              onClick={() => toggleRowPhoneMask(row.id)}
-                              className="p-1 text-slate-400 hover:text-[#003366] hover:bg-slate-100 rounded-md transition-colors cursor-pointer shrink-0"
-                              title={isMasked ? 'Buka sensor NIK & No HP' : 'Sensor kembali'}
-                            >
-                              {isMasked ? (
-                                <Eye className="w-3.5 h-3.5 text-slate-400 hover:text-slate-700" />
-                              ) : (
-                                <EyeOff className="w-3.5 h-3.5 text-emerald-600 hover:text-emerald-800" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 3. No Hp (Disensor demi privasi seluruh peserta) */}
+                      {/* 2. No Hp (Disensor demi privasi seluruh peserta) */}
                       <td className="py-3.5 px-4 sm:px-6 align-top">
                         <div className="inline-flex items-center gap-1.5 flex-wrap">
                           <div
@@ -826,7 +843,33 @@ export const DataPesertaSection: React.FC<Props> = ({
                         )}
                       </td>
 
-                      {/* 5. Formulir DOCX (Hanya saat admin login) */}
+                      {/* 5. Ceklist Status Pembayaran (Hanya saat admin login) */}
+                      {isAdminLoggedIn && (
+                        <td className="py-3.5 px-3 sm:px-4 align-top text-center whitespace-nowrap">
+                          <label
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer select-none transition-all ${
+                              isSudahBayar
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300'
+                            }`}
+                            title={
+                              isSudahBayar
+                                ? `${row.namaLengkap} sudah membayar (klik untuk ubah ke Belum Membayar)`
+                                : `Ceklist jika ${row.namaLengkap} sudah membayar`
+                            }
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSudahBayar}
+                              onChange={(e) => handlePaymentToggle(row.id, e.target.checked)}
+                              className="w-4 h-4 rounded accent-emerald-600 cursor-pointer shrink-0"
+                            />
+                            <span>{isSudahBayar ? 'Sudah Bayar' : 'Belum Bayar'}</span>
+                          </label>
+                        </td>
+                      )}
+
+                      {/* 6. Formulir DOCX (Hanya saat admin login) */}
                       {isAdminLoggedIn && (
                         <td className="py-3.5 px-3 sm:px-4 align-top text-center whitespace-nowrap">
                           <button

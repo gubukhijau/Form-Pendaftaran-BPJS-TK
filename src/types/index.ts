@@ -3,6 +3,7 @@ export type JobType = 'Pedagang' | 'Tukang' | 'Lain-lain';
 export type PaymentPeriod = 1 | 2 | 3 | 6 | 12;
 
 export type DocumentStatus = 'Terlampir' | 'Belum Terlampir';
+export type PaymentStatus = 'Sudah Membayar' | 'Belum Membayar';
 
 export interface AdminRegistrant {
   id: string;
@@ -10,6 +11,7 @@ export interface AdminRegistrant {
   alamat: string;
   noHp: string;
   dokumen: DocumentStatus;
+  statusPembayaran?: PaymentStatus;
   createdAt?: string;
   nik?: string;
   tempatLahir?: string;

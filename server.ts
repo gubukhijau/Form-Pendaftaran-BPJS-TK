@@ -130,6 +130,9 @@ function mapRegistrantRow(row: any, detail: any = {}) {
     alamat: String(row.alamat || detail.alamat || '-'),
     noHp: String(row.no_hp || row.noHp || row.telepon || detail.noHp || '-'),
     dokumen: (row.dokumen === 'Terlampir' || detail.dokumen === 'Terlampir') ? 'Terlampir' : 'Belum Terlampir',
+    statusPembayaran: (row.status_pembayaran === 'Sudah Membayar' || detail.statusPembayaran === 'Sudah Membayar')
+      ? 'Sudah Membayar'
+      : 'Belum Membayar',
     createdAt: row.created_at || row.createdAt || detail.createdAt || new Date().toISOString(),
     nik: String(row.nik || row.no_ktp || row.ktp || detail.nik || ''),
     tempatLahir: String(row.tempat_lahir || row.tempatLahir || detail.tempatLahir || ''),
@@ -228,6 +231,7 @@ app.post('/api/registrants', async (req, res) => {
     alamat,
     noHp,
     dokumen,
+    statusPembayaran,
     createdAt,
     nik,
     tempatLahir,
@@ -251,6 +255,7 @@ app.post('/api/registrants', async (req, res) => {
     alamat: String(alamat).trim(),
     noHp: String(noHp).trim(),
     dokumen: dokumen === 'Terlampir' ? 'Terlampir' : 'Belum Terlampir',
+    statusPembayaran: statusPembayaran === 'Sudah Membayar' ? 'Sudah Membayar' : 'Belum Membayar',
     createdAt: createdAt || new Date().toISOString(),
     nik: (nik || '').trim(),
     tempatLahir: (tempatLahir || '').trim(),
@@ -276,6 +281,7 @@ app.post('/api/registrants', async (req, res) => {
         alamat: cleanDetail.alamat,
         no_hp: cleanDetail.noHp,
         dokumen: cleanDetail.dokumen,
+        status_pembayaran: cleanDetail.statusPembayaran,
         created_at: cleanDetail.createdAt,
         nik: cleanDetail.nik,
         tempat_lahir: cleanDetail.tempatLahir,
@@ -323,6 +329,7 @@ app.patch('/api/registrants/:id', async (req, res) => {
       // Prepare remote payload
       const remoteUpdates: any = {};
       if (updates.dokumen !== undefined) remoteUpdates.dokumen = updates.dokumen;
+      if (updates.statusPembayaran !== undefined) remoteUpdates.status_pembayaran = updates.statusPembayaran;
       if (updates.namaLengkap !== undefined) remoteUpdates.nama_lengkap = updates.namaLengkap;
       if (updates.alamat !== undefined) remoteUpdates.alamat = updates.alamat;
       if (updates.noHp !== undefined) remoteUpdates.no_hp = updates.noHp;

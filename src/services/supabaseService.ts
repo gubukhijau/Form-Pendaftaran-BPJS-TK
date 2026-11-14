@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { AdminRegistrant, DocumentStatus, SupabaseConfig } from '../types';
+import { AdminRegistrant, DocumentStatus, PaymentStatus, SupabaseConfig } from '../types';
 
 const SUPABASE_CONFIG_KEY = 'bpjs_bpu_supabase_config';
 export const DEFAULT_TABLE_NAME = 'pendaftar_bpjs_bpu';
@@ -342,6 +342,11 @@ export async function fetchRegistrantsFromSupabase(): Promise<AdminRegistrant[] 
           alamat: String(row.alamat || '-'),
           noHp: String(row.no_hp || row.noHp || '-'),
           dokumen: (row.dokumen === 'Terlampir' ? 'Terlampir' : 'Belum Terlampir') as DocumentStatus,
+          statusPembayaran: (row.status_pembayaran === 'Sudah Membayar'
+            ? 'Sudah Membayar'
+            : row.status_pembayaran === 'Belum Membayar'
+              ? 'Belum Membayar'
+              : undefined) as PaymentStatus | undefined,
           createdAt: row.created_at || row.createdAt || new Date().toISOString(),
           nik: String(row.nik || row.no_ktp || ''),
           tempatLahir: String(row.tempat_lahir || row.tempatLahir || ''),
@@ -419,6 +424,11 @@ export async function fetchSingleRegistrantFromSupabase(
           alamat: String(data.alamat || '-'),
           noHp: String(data.no_hp || data.noHp || data.telepon || '-'),
           dokumen: (data.dokumen === 'Terlampir' ? 'Terlampir' : 'Belum Terlampir') as DocumentStatus,
+          statusPembayaran: (data.status_pembayaran === 'Sudah Membayar'
+            ? 'Sudah Membayar'
+            : data.status_pembayaran === 'Belum Membayar'
+              ? 'Belum Membayar'
+              : undefined) as PaymentStatus | undefined,
           createdAt: data.created_at || data.createdAt || new Date().toISOString(),
           nik: String(data.nik || data.no_ktp || data.ktp || ''),
           tempatLahir: String(data.tempat_lahir || data.tempatLahir || ''),
@@ -462,6 +472,7 @@ export async function insertRegistrantToSupabase(
         alamat: entry.alamat,
         no_hp: entry.noHp,
         dokumen: entry.dokumen,
+        status_pembayaran: entry.statusPembayaran || 'Belum Membayar',
         created_at: entry.createdAt || new Date().toISOString(),
         nik: entry.nik || '',
         tempat_lahir: entry.tempatLahir || '',
@@ -522,6 +533,7 @@ export async function updateRegistrantInSupabase(
     try {
       const remoteUpdates: any = {};
       if (updates.dokumen !== undefined) remoteUpdates.dokumen = updates.dokumen;
+      if (updates.statusPembayaran !== undefined) remoteUpdates.status_pembayaran = updates.statusPembayaran;
       if (updates.namaLengkap !== undefined) remoteUpdates.nama_lengkap = updates.namaLengkap;
       if (updates.alamat !== undefined) remoteUpdates.alamat = updates.alamat;
       if (updates.noHp !== undefined) remoteUpdates.no_hp = updates.noHp;

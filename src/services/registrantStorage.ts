@@ -1,4 +1,4 @@
-import { AdminRegistrant, DocumentStatus } from '../types';
+import { AdminRegistrant, DocumentStatus, PaymentStatus } from '../types';
 import {
   fetchRegistrantsFromSupabase,
   fetchSingleRegistrantFromSupabase,
@@ -95,7 +95,8 @@ export async function fetchAndSyncRegistrants(): Promise<{
             pekerjaan: remote.pekerjaan || local.pekerjaan,
             pekerjaanSampingan: remote.pekerjaanSampingan || local.pekerjaanSampingan,
             email: remote.email || local.email,
-            program: remote.program || local.program
+            program: remote.program || local.program,
+            statusPembayaran: remote.statusPembayaran || local.statusPembayaran || 'Belum Membayar'
           };
         }
         return remote;
@@ -134,7 +135,8 @@ export async function syncSingleRegistrant(
             pekerjaan: remote.pekerjaan || item.pekerjaan,
             pekerjaanSampingan: remote.pekerjaanSampingan || item.pekerjaanSampingan,
             email: remote.email || item.email,
-            program: remote.program || item.program
+            program: remote.program || item.program,
+            statusPembayaran: remote.statusPembayaran || item.statusPembayaran || 'Belum Membayar'
           };
         }
         return item;
@@ -220,6 +222,24 @@ export function updateRegistrantDocumentStatus(
   // Background sync to Supabase if configured
   updateRegistrantInSupabase(id, newStatus).catch((err) => {
     console.warn('Background Supabase update error:', err);
+  });
+
+  return updated;
+}
+
+export function updateRegistrantPaymentStatus(
+  id: string,
+  statusPembayaran: PaymentStatus
+): AdminRegistrant[] {
+  const current = getLocalRegistrants();
+  const updated = current.map((item) =>
+    item.id === id ? { ...item, statusPembayaran } : item
+  );
+  setLocalRegistrants(updated);
+
+  // Background sync to server & Supabase
+  updateRegistrantInSupabase(id, { statusPembayaran }).catch((err) => {
+    console.warn('Background payment status update error:', err);
   });
 
   return updated;
