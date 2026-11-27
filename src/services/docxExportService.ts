@@ -47,6 +47,13 @@ export function prepareParticipantDetails(
     tempatTanggalLahir = registrant.tempatLahir;
   }
 
+  const rawProgram = (registrant.program || '').trim();
+  const normalizedProgram = rawProgram
+    ? rawProgram.toUpperCase().includes('JHT')
+      ? 'JKK, JKM, dan JHT'
+      : 'JKK & JKM'
+    : 'JKK & JKM';
+
   const base: DocxParticipantDetails = {
     namaLengkap: registrant.namaLengkap ? registrant.namaLengkap.toUpperCase() : '',
     nik: registrant.nik || '',
@@ -58,7 +65,7 @@ export function prepareParticipantDetails(
     namaIbuKandung: registrant.namaIbuKandung ? registrant.namaIbuKandung.toUpperCase() : '',
     noHp: registrant.noHp || '',
     email: registrant.email || '',
-    programBPJS: registrant.program || 'JKK & JKM'
+    programBPJS: normalizedProgram
   };
 
   if (overrides) {

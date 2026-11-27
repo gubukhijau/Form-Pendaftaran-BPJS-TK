@@ -486,7 +486,7 @@ export async function insertRegistrantToSupabase(
         tanggal_lahir: entry.tanggalLahir || '',
         nama_ibu_kandung: entry.namaIbuKandung || '',
         pekerjaan: entry.pekerjaan || '',
-        pekerjaanSampingan: entry.pekerjaanSampingan || '',
+        pekerjaan_sampingan: entry.pekerjaanSampingan || '',
         email: entry.email || '',
         program: entry.program || ''
       };

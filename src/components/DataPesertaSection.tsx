@@ -45,7 +45,9 @@ import {
   FileText,
   FileDown,
   ExternalLink,
-  Wallet
+  Wallet,
+  Briefcase,
+  Shield
 } from 'lucide-react';
 import { ExportDocxModal } from './ExportDocxModal';
 import { WhatsAppIuranModal } from './WhatsAppIuranModal';
@@ -113,6 +115,9 @@ export const DataPesertaSection: React.FC<Props> = ({
   const [newAlamat, setNewAlamat] = useState('');
   const [newNoHp, setNewNoHp] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newPekerjaan, setNewPekerjaan] = useState('');
+  const [newPekerjaanDetail, setNewPekerjaanDetail] = useState('');
+  const [newProgram, setNewProgram] = useState<'JKK, JKM' | 'JKK, JKM & JHT'>('JKK, JKM');
   const [newDokumen, setNewDokumen] = useState<DocumentStatus>('Belum Terlampir');
   const [formError, setFormError] = useState('');
 
@@ -308,14 +313,26 @@ export const DataPesertaSection: React.FC<Props> = ({
       return;
     }
 
+    let resolvedPekerjaan = newPekerjaan.trim();
+    if (resolvedPekerjaan === 'Tukang') {
+      resolvedPekerjaan = newPekerjaanDetail.trim()
+        ? `Tukang (${newPekerjaanDetail.trim()})`
+        : 'Tukang';
+    } else if (resolvedPekerjaan === 'Lain-lain') {
+      resolvedPekerjaan = newPekerjaanDetail.trim() || 'Lain-lain';
+    }
+
     const created = saveRegistrant({
       namaLengkap: newNama.trim(),
       alamat: newAlamat.trim(),
       noHp: newNoHp.trim(),
       dokumen: newDokumen,
+      statusPembayaran: 'Belum Membayar',
       namaIbuKandung: newNamaIbuKandung.trim(),
       nik: newNik.trim(),
-      email: newEmail.trim()
+      email: newEmail.trim(),
+      pekerjaan: resolvedPekerjaan,
+      program: newProgram
     });
 
     setRegistrants([created, ...registrants]);
@@ -325,6 +342,9 @@ export const DataPesertaSection: React.FC<Props> = ({
     setNewAlamat('');
     setNewNoHp('');
     setNewEmail('');
+    setNewPekerjaan('');
+    setNewPekerjaanDetail('');
+    setNewProgram('JKK, JKM');
     setNewDokumen('Belum Terlampir');
     setFormError('');
     setIsAddModalOpen(false);
@@ -1076,8 +1096,8 @@ export const DataPesertaSection: React.FC<Props> = ({
 
       {/* Modal: Tambah Data Pendaftar Manual (Khusus Petugas) */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-scaleUp">
+        <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden my-auto animate-scaleUp">
             <div className="p-5 bg-gradient-to-r from-[#003366] to-[#007b5e] text-white flex items-center justify-between">
               <h3 className="font-bold text-base sm:text-lg flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-emerald-300" />
@@ -1092,7 +1112,7 @@ export const DataPesertaSection: React.FC<Props> = ({
               </button>
             </div>
 
-            <form onSubmit={handleAddSubmit} className="p-5 sm:p-6 space-y-4">
+            <form onSubmit={handleAddSubmit} className="p-5 sm:p-6 space-y-4 max-h-[78vh] overflow-y-auto">
               {formError && (
                 <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -1157,6 +1177,43 @@ export const DataPesertaSection: React.FC<Props> = ({
                 />
               </div>
 
+              {/* Jenis Pekerjaan */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Jenis Pekerjaan</span>
+                </label>
+                <select
+                  value={newPekerjaan}
+                  onChange={(e) => {
+                    setNewPekerjaan(e.target.value);
+                    if (e.target.value === 'Pedagang' || e.target.value === '') {
+                      setNewPekerjaanDetail('');
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366] font-semibold text-slate-800"
+                >
+                  <option value="">-- Pilih Jenis Pekerjaan --</option>
+                  <option value="Pedagang">Pedagang</option>
+                  <option value="Tukang">Tukang (Sebutkan Keahlian)</option>
+                  <option value="Lain-lain">Lain-lain (Isi Manual)</option>
+                </select>
+
+                {(newPekerjaan === 'Tukang' || newPekerjaan === 'Lain-lain') && (
+                  <input
+                    type="text"
+                    value={newPekerjaanDetail}
+                    onChange={(e) => setNewPekerjaanDetail(e.target.value)}
+                    placeholder={
+                      newPekerjaan === 'Tukang'
+                        ? 'Contoh: Tukang Bangunan, Tukang Kayu, Bengkel...'
+                        : 'Contoh: Petani, Penjahit, Sopir, Ojek Online...'
+                    }
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366] focus:bg-white"
+                  />
+                )}
+              </div>
+
               {/* No Hp */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1184,6 +1241,65 @@ export const DataPesertaSection: React.FC<Props> = ({
                   placeholder="Contoh: peserta@gmail.com"
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-[#003366]"
                 />
+              </div>
+
+              {/* Pilihan 2 Program BPJS */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-[#007b5e]" />
+                  <span>Program BPJS Ketenagakerjaan</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      newProgram === 'JKK, JKM'
+                        ? 'border-[#007b5e] bg-emerald-50/70 shadow-xs'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="manualProgramBpjs"
+                      value="JKK, JKM"
+                      checked={newProgram === 'JKK, JKM'}
+                      onChange={() => setNewProgram('JKK, JKM')}
+                      className="mt-0.5 accent-[#007b5e] cursor-pointer"
+                    />
+                    <div>
+                      <span className="block text-xs font-extrabold text-slate-900">
+                        1. JKK, JKM
+                      </span>
+                      <span className="block text-[11px] font-semibold text-[#007b5e] mt-0.5">
+                        Rp 16.800 / bulan
+                      </span>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      newProgram === 'JKK, JKM & JHT'
+                        ? 'border-[#003366] bg-sky-50/70 shadow-xs'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="manualProgramBpjs"
+                      value="JKK, JKM & JHT"
+                      checked={newProgram === 'JKK, JKM & JHT'}
+                      onChange={() => setNewProgram('JKK, JKM & JHT')}
+                      className="mt-0.5 accent-[#003366] cursor-pointer"
+                    />
+                    <div>
+                      <span className="block text-xs font-extrabold text-slate-900">
+                        2. JKK, JKM & JHT
+                      </span>
+                      <span className="block text-[11px] font-semibold text-[#003366] mt-0.5">
+                        Rp 36.800 / bulan
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               {/* Status Dokumen */}
