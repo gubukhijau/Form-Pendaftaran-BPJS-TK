@@ -5,6 +5,15 @@ export type PaymentPeriod = 1 | 2 | 3 | 6 | 12;
 export type DocumentStatus = 'Terlampir' | 'Belum Terlampir';
 export type PaymentStatus = 'Sudah Membayar' | 'Belum Membayar';
 
+export interface MonthlyIuranRecord {
+  paid: boolean;
+  amount: number;
+  paidAt?: string;
+  note?: string;
+}
+
+export type MonthlyPaymentsMap = Record<string, MonthlyIuranRecord>;
+
 export interface AdminRegistrant {
   id: string;
   namaLengkap: string;
@@ -12,6 +21,7 @@ export interface AdminRegistrant {
   noHp: string;
   dokumen: DocumentStatus;
   statusPembayaran?: PaymentStatus;
+  monthlyPayments?: MonthlyPaymentsMap;
   createdAt?: string;
   nik?: string;
   tempatLahir?: string;

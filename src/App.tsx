@@ -15,6 +15,7 @@ import { WhatsAppSubmitModal, buildWhatsAppMessage } from './components/WhatsApp
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { FaqSection } from './components/FaqSection';
 import { DataPesertaSection } from './components/DataPesertaSection';
+import { DataIuranSection } from './components/DataIuranSection';
 import { saveRegistrant, saveRegistrantAsync } from './services/registrantStorage';
 import { syncSupabaseConfigFromServer, getCurrentSupabaseSession, signOutSupabaseAuth } from './services/supabaseService';
 import { RegistrationFormData, WA_TARGET_NUMBER, WA_TARGET_DISPLAY, WA_TARGET_INTERNATIONAL, parseDDMMYYYY } from './types';
@@ -23,7 +24,8 @@ import {
   AlertCircle,
   Sparkles,
   Users,
-  FileText
+  FileText,
+  Wallet
 } from 'lucide-react';
 
 const initialFormData: RegistrationFormData = {
@@ -45,7 +47,7 @@ const initialFormData: RegistrationFormData = {
 };
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'form' | 'peserta'>('form');
+  const [currentView, setCurrentView] = useState<'form' | 'peserta' | 'iuran'>('form');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem('bpjs_admin_unlocked') === 'true';
@@ -318,6 +320,11 @@ export default function App() {
               const el = document.getElementById('data-peserta');
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 60);
+          } else if (view === 'iuran') {
+            setTimeout(() => {
+              const el = document.getElementById('data-iuran');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 60);
           }
         }}
         isAdminLoggedIn={isAdminLoggedIn}
@@ -367,6 +374,30 @@ export default function App() {
                 Semua Orang
               </span>
             </button>
+
+            {isAdminLoggedIn && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentView('iuran');
+                  setTimeout(() => {
+                    const el = document.getElementById('data-iuran');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 60);
+                }}
+                className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl transition-all cursor-pointer ${
+                  currentView === 'iuran'
+                    ? 'bg-[#003366] text-white shadow-md'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Wallet className="w-4 h-4 text-emerald-400" />
+                <span>Data Iuran Peserta</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                  Petugas
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -494,6 +525,17 @@ export default function App() {
               <FaqSection />
             </div>
           </>
+        ) : currentView === 'iuran' && isAdminLoggedIn ? (
+          /* View 3: Data Iuran Bulanan Peserta (Khusus Petugas) */
+          <div className="space-y-6">
+            <DataIuranSection
+              isAdminLoggedIn={isAdminLoggedIn}
+              onBackToPeserta={() => {
+                setCurrentView('peserta');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          </div>
         ) : (
           /* View 2: Data Peserta Full View directly on Main Page */
           <div className="space-y-6">
@@ -508,6 +550,10 @@ export default function App() {
               onSwitchToForm={() => {
                 setCurrentView('form');
                 if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth' });
+              }}
+              onSwitchToIuran={() => {
+                setCurrentView('iuran');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />
           </div>

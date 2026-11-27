@@ -122,6 +122,21 @@ function upsertStoredRegistrantDetail(id: string, detail: any) {
   }
 }
 
+function parseMonthlyPayments(remoteVal: any, localVal: any) {
+  let remoteObj: Record<string, any> = {};
+  if (remoteVal && typeof remoteVal === 'object' && !Array.isArray(remoteVal)) {
+    remoteObj = remoteVal;
+  } else if (typeof remoteVal === 'string' && remoteVal.trim().startsWith('{')) {
+    try {
+      remoteObj = JSON.parse(remoteVal);
+    } catch {
+      remoteObj = {};
+    }
+  }
+  const localObj = localVal && typeof localVal === 'object' && !Array.isArray(localVal) ? localVal : {};
+  return { ...remoteObj, ...localObj };
+}
+
 function mapRegistrantRow(row: any, detail: any = {}) {
   const targetId = String(row.id || detail.id || `REG-${Date.now()}`);
   return {
@@ -133,6 +148,7 @@ function mapRegistrantRow(row: any, detail: any = {}) {
     statusPembayaran: (row.status_pembayaran === 'Sudah Membayar' || detail.statusPembayaran === 'Sudah Membayar')
       ? 'Sudah Membayar'
       : 'Belum Membayar',
+    monthlyPayments: parseMonthlyPayments(row.monthly_payments, detail.monthlyPayments),
     createdAt: row.created_at || row.createdAt || detail.createdAt || new Date().toISOString(),
     nik: String(row.nik || row.no_ktp || row.ktp || detail.nik || ''),
     tempatLahir: String(row.tempat_lahir || row.tempatLahir || detail.tempatLahir || ''),
@@ -232,6 +248,7 @@ app.post('/api/registrants', async (req, res) => {
     noHp,
     dokumen,
     statusPembayaran,
+    monthlyPayments,
     createdAt,
     nik,
     tempatLahir,
@@ -256,6 +273,7 @@ app.post('/api/registrants', async (req, res) => {
     noHp: String(noHp).trim(),
     dokumen: dokumen === 'Terlampir' ? 'Terlampir' : 'Belum Terlampir',
     statusPembayaran: statusPembayaran === 'Sudah Membayar' ? 'Sudah Membayar' : 'Belum Membayar',
+    monthlyPayments: monthlyPayments && typeof monthlyPayments === 'object' ? monthlyPayments : {},
     createdAt: createdAt || new Date().toISOString(),
     nik: (nik || '').trim(),
     tempatLahir: (tempatLahir || '').trim(),
@@ -282,6 +300,7 @@ app.post('/api/registrants', async (req, res) => {
         no_hp: cleanDetail.noHp,
         dokumen: cleanDetail.dokumen,
         status_pembayaran: cleanDetail.statusPembayaran,
+        monthly_payments: cleanDetail.monthlyPayments,
         created_at: cleanDetail.createdAt,
         nik: cleanDetail.nik,
         tempat_lahir: cleanDetail.tempatLahir,
@@ -330,6 +349,7 @@ app.patch('/api/registrants/:id', async (req, res) => {
       const remoteUpdates: any = {};
       if (updates.dokumen !== undefined) remoteUpdates.dokumen = updates.dokumen;
       if (updates.statusPembayaran !== undefined) remoteUpdates.status_pembayaran = updates.statusPembayaran;
+      if (updates.monthlyPayments !== undefined) remoteUpdates.monthly_payments = updates.monthlyPayments;
       if (updates.namaLengkap !== undefined) remoteUpdates.nama_lengkap = updates.namaLengkap;
       if (updates.alamat !== undefined) remoteUpdates.alamat = updates.alamat;
       if (updates.noHp !== undefined) remoteUpdates.no_hp = updates.noHp;

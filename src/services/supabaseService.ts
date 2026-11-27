@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { AdminRegistrant, DocumentStatus, PaymentStatus, SupabaseConfig } from '../types';
+import { AdminRegistrant, DocumentStatus, MonthlyPaymentsMap, PaymentStatus, SupabaseConfig } from '../types';
 
 const SUPABASE_CONFIG_KEY = 'bpjs_bpu_supabase_config';
 export const DEFAULT_TABLE_NAME = 'pendaftar_bpjs_bpu';
@@ -347,6 +347,9 @@ export async function fetchRegistrantsFromSupabase(): Promise<AdminRegistrant[] 
             : row.status_pembayaran === 'Belum Membayar'
               ? 'Belum Membayar'
               : undefined) as PaymentStatus | undefined,
+          monthlyPayments: (row.monthly_payments && typeof row.monthly_payments === 'object'
+            ? row.monthly_payments
+            : undefined) as MonthlyPaymentsMap | undefined,
           createdAt: row.created_at || row.createdAt || new Date().toISOString(),
           nik: String(row.nik || row.no_ktp || ''),
           tempatLahir: String(row.tempat_lahir || row.tempatLahir || ''),
@@ -429,6 +432,9 @@ export async function fetchSingleRegistrantFromSupabase(
             : data.status_pembayaran === 'Belum Membayar'
               ? 'Belum Membayar'
               : undefined) as PaymentStatus | undefined,
+          monthlyPayments: (data.monthly_payments && typeof data.monthly_payments === 'object'
+            ? data.monthly_payments
+            : undefined) as MonthlyPaymentsMap | undefined,
           createdAt: data.created_at || data.createdAt || new Date().toISOString(),
           nik: String(data.nik || data.no_ktp || data.ktp || ''),
           tempatLahir: String(data.tempat_lahir || data.tempatLahir || ''),
@@ -473,6 +479,7 @@ export async function insertRegistrantToSupabase(
         no_hp: entry.noHp,
         dokumen: entry.dokumen,
         status_pembayaran: entry.statusPembayaran || 'Belum Membayar',
+        monthly_payments: entry.monthlyPayments || {},
         created_at: entry.createdAt || new Date().toISOString(),
         nik: entry.nik || '',
         tempat_lahir: entry.tempatLahir || '',
@@ -534,6 +541,7 @@ export async function updateRegistrantInSupabase(
       const remoteUpdates: any = {};
       if (updates.dokumen !== undefined) remoteUpdates.dokumen = updates.dokumen;
       if (updates.statusPembayaran !== undefined) remoteUpdates.status_pembayaran = updates.statusPembayaran;
+      if (updates.monthlyPayments !== undefined) remoteUpdates.monthly_payments = updates.monthlyPayments;
       if (updates.namaLengkap !== undefined) remoteUpdates.nama_lengkap = updates.namaLengkap;
       if (updates.alamat !== undefined) remoteUpdates.alamat = updates.alamat;
       if (updates.noHp !== undefined) remoteUpdates.no_hp = updates.noHp;
@@ -625,7 +633,26 @@ export async function syncAllLocalToSupabase(
     };
   }
 
-  const payload = localList.map((entry) => ({
+  const fullPayload = localList.map((entry) => ({
+    id: entry.id,
+    nama_lengkap: entry.namaLengkap,
+    alamat: entry.alamat,
+    no_hp: entry.noHp,
+    dokumen: entry.dokumen,
+    status_pembayaran: entry.statusPembayaran || 'Belum Membayar',
+    monthly_payments: entry.monthlyPayments || {},
+    created_at: entry.createdAt || new Date().toISOString(),
+    nik: entry.nik || '',
+    tempat_lahir: entry.tempatLahir || '',
+    tanggal_lahir: entry.tanggalLahir || '',
+    nama_ibu_kandung: entry.namaIbuKandung || '',
+    pekerjaan: entry.pekerjaan || '',
+    pekerjaan_sampingan: entry.pekerjaanSampingan || '',
+    email: entry.email || '',
+    program: entry.program || ''
+  }));
+
+  const basePayload = localList.map((entry) => ({
     id: entry.id,
     nama_lengkap: entry.namaLengkap,
     alamat: entry.alamat,
@@ -635,7 +662,11 @@ export async function syncAllLocalToSupabase(
   }));
 
   try {
-    const { error } = await client.from(targetTable).upsert(payload);
+    let { error } = await client.from(targetTable).upsert(fullPayload);
+    if (error) {
+      const fallbackRes = await client.from(targetTable).upsert(basePayload);
+      error = fallbackRes.error;
+    }
     if (error) {
       return {
         success: false,
@@ -653,8 +684,8 @@ export async function syncAllLocalToSupabase(
 
     return {
       success: true,
-      count: payload.length,
-      message: `Berhasil menyinkronkan ${payload.length} data pendaftar ke Supabase.`
+      count: fullPayload.length,
+      message: `Berhasil menyinkronkan ${fullPayload.length} data pendaftar ke Supabase.`
     };
   } catch (err: any) {
     return {

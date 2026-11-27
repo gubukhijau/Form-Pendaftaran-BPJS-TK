@@ -73,10 +73,12 @@ create table if not exists ${currentTableName} (
   alamat text not null,
   no_hp text not null,
   dokumen text not null default 'Belum Terlampir',
+  status_pembayaran text not null default 'Belum Membayar',
+  monthly_payments jsonb not null default '{}'::jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Tambahkan kolom lengkap untuk DOCX Formulir Resmi (NIK, TTL, Nama Ibu, dll):
+-- Tambahkan kolom lengkap untuk Formulir Resmi DOCX & Iuran Bulanan:
 alter table ${currentTableName} add column if not exists nik text;
 alter table ${currentTableName} add column if not exists tempat_lahir text;
 alter table ${currentTableName} add column if not exists tanggal_lahir text;
@@ -85,11 +87,14 @@ alter table ${currentTableName} add column if not exists pekerjaan text;
 alter table ${currentTableName} add column if not exists pekerjaan_sampingan text;
 alter table ${currentTableName} add column if not exists email text;
 alter table ${currentTableName} add column if not exists program text;
+alter table ${currentTableName} add column if not exists status_pembayaran text not null default 'Belum Membayar';
+alter table ${currentTableName} add column if not exists monthly_payments jsonb not null default '{}'::jsonb;
 
 -- Aktifkan Row Level Security (RLS)
 alter table ${currentTableName} enable row level security;
 
--- Buat policy agar website bisa membaca dan menulis data pendaftar
+-- Buat ulang policy agar website bisa membaca dan menulis data pendaftar & iuran
+drop policy if exists "Akses Publik Pendaftar BPJS" on ${currentTableName};
 create policy "Akses Publik Pendaftar BPJS" on ${currentTableName}
   for all using (true) with check (true);
 `;

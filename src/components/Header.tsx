@@ -8,7 +8,8 @@ import {
   Users,
   FileText,
   Lock,
-  LogOut
+  LogOut,
+  Wallet
 } from 'lucide-react';
 import { WA_TARGET_INTERNATIONAL, WA_TARGET_DISPLAY } from '../types';
 
@@ -16,8 +17,8 @@ interface Props {
   onOpenAdmin?: () => void;
   isAdminLoggedIn?: boolean;
   adminEmail?: string;
-  currentView?: 'form' | 'peserta' | 'admin';
-  onNavigate?: (view: 'form' | 'peserta') => void;
+  currentView?: 'form' | 'peserta' | 'iuran' | 'admin';
+  onNavigate?: (view: 'form' | 'peserta' | 'iuran') => void;
   onLogout?: () => void;
 }
 
@@ -80,6 +81,22 @@ export const Header: React.FC<Props> = ({
                 <span>Data Peserta</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400" title="Terbuka untuk Umum" />
               </button>
+
+              {isAdminLoggedIn && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate?.('iuran')}
+                  className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full font-bold transition-all cursor-pointer ${
+                    currentView === 'iuran'
+                      ? 'bg-amber-400 text-slate-900 shadow-sm'
+                      : 'text-white/90 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Kelola Data Iuran Bulanan Peserta (Khusus Petugas)"
+                >
+                  <Wallet className="w-3.5 h-3.5" />
+                  <span>Data Iuran</span>
+                </button>
+              )}
             </div>
 
             {/* Status Admin & Tombol Keluar (Jika admin login) */}

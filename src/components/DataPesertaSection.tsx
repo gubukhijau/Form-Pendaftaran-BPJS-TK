@@ -44,7 +44,8 @@ import {
   Info,
   FileText,
   FileDown,
-  ExternalLink
+  ExternalLink,
+  Wallet
 } from 'lucide-react';
 import { ExportDocxModal } from './ExportDocxModal';
 import { WhatsAppIuranModal } from './WhatsAppIuranModal';
@@ -55,6 +56,7 @@ interface Props {
   onLoginSuccess?: (email: string) => void;
   onLogout?: () => void;
   onSwitchToForm?: () => void;
+  onSwitchToIuran?: () => void;
 }
 
 const ADMIN_SECRET_KEY = 'SAPALEWA';
@@ -65,7 +67,8 @@ export const DataPesertaSection: React.FC<Props> = ({
   adminEmail = '',
   onLoginSuccess,
   onLogout,
-  onSwitchToForm
+  onSwitchToForm,
+  onSwitchToIuran
 }) => {
   const [registrants, setRegistrants] = useState<AdminRegistrant[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -443,7 +446,19 @@ export const DataPesertaSection: React.FC<Props> = ({
 
             {/* Admin Controls / Login */}
             {isAdminLoggedIn ? (
-              <div className="inline-flex items-center gap-2">
+              <div className="inline-flex flex-wrap items-center gap-2">
+                {onSwitchToIuran && (
+                  <button
+                    type="button"
+                    onClick={onSwitchToIuran}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#003366] hover:bg-[#0b4870] text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+                    title="Buka halaman input & rekap iuran bulanan peserta"
+                  >
+                    <Wallet className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Data Iuran</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(true)}

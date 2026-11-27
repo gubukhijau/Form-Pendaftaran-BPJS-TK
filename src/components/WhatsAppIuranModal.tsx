@@ -24,6 +24,8 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   registrant: AdminRegistrant | null;
+  initialBulanTagihan?: string;
+  initialAmount?: number;
 }
 
 type IuranProgramOption = 'JKK + JKM' | 'JKK + JKM + JHT';
@@ -130,12 +132,14 @@ export interface IuranFormValues {
   nama: string;
   program: IuranProgramOption;
   iuranBulanan: string;
+  bulanTagihan?: string;
   bankAccounts: BankAccountItem[];
 }
 
 export function buildIuranWhatsAppMessage(values: IuranFormValues): string {
   const namaVal = values.nama.trim() || '....................';
   const iuranVal = values.iuranBulanan.trim() || '....................';
+  const bulanVal = (values.bulanTagihan || '').trim();
 
   const accounts = values.bankAccounts.length > 0 ? values.bankAccounts : [createEmptyAccount(1)];
   const bankLines: string[] = [];
@@ -169,6 +173,7 @@ export function buildIuranWhatsAppMessage(values: IuranFormValues): string {
     '',
     '👤 *DATA PESERTA*',
     `Nama: ${namaVal}`,
+    ...(bulanVal ? [`Bulan Iuran: ${bulanVal}`] : []),
     `Program: ${values.program}`,
     `💰 Iuran Bulanan: Rp ${iuranVal}`,
     '',
@@ -190,10 +195,13 @@ export function buildIuranWhatsAppMessage(values: IuranFormValues): string {
 export const WhatsAppIuranModal: React.FC<Props> = ({
   isOpen,
   onClose,
-  registrant
+  registrant,
+  initialBulanTagihan = '',
+  initialAmount
 }) => {
   const [nama, setNama] = useState('');
   const [noHp, setNoHp] = useState('');
+  const [bulanTagihan, setBulanTagihan] = useState('');
   const [program, setProgram] = useState<IuranProgramOption>('JKK + JKM');
   const [iuranBulanan, setIuranBulanan] = useState('16.800');
   const [bankAccounts, setBankAccounts] = useState<BankAccountItem[]>(() => loadSavedBankAccounts());
@@ -209,8 +217,13 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
 
     setNama(registrant.namaLengkap || '');
     setNoHp(registrant.noHp || '');
+    setBulanTagihan(initialBulanTagihan || '');
     setProgram(detectedProgram);
-    setIuranBulanan(getDefaultRateString(detectedProgram));
+    setIuranBulanan(
+      initialAmount && initialAmount > 0
+        ? initialAmount.toLocaleString('id-ID')
+        : getDefaultRateString(detectedProgram)
+    );
     setBankAccounts(savedAccounts);
     setCopied(false);
     setSentClicked(false);
@@ -225,7 +238,9 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
         setNama(fresh.namaLengkap || registrant.namaLengkap || '');
         setNoHp(fresh.noHp || registrant.noHp || '');
         setProgram(freshProgram);
-        setIuranBulanan(getDefaultRateString(freshProgram));
+        if (!initialAmount || initialAmount <= 0) {
+          setIuranBulanan(getDefaultRateString(freshProgram));
+        }
       })
       .catch(() => {
         // Fallback silently to existing local registrant data
@@ -237,7 +252,7 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
     return () => {
       active = false;
     };
-  }, [isOpen, registrant?.id]);
+  }, [isOpen, registrant?.id, initialBulanTagihan, initialAmount]);
 
   // Persist bank accounts whenever admin updates them
   useEffect(() => {
@@ -279,9 +294,10 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
         nama,
         program,
         iuranBulanan,
+        bulanTagihan,
         bankAccounts
       }),
-    [nama, program, iuranBulanan, bankAccounts]
+    [nama, program, iuranBulanan, bulanTagihan, bankAccounts]
   );
 
   const normalizedWaNumber = useMemo(() => formatPhoneForWhatsApp(noHp), [noHp]);
@@ -366,17 +382,32 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
                 <span>👤 Data Peserta</span>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Nama Peserta
-                </label>
-                <input
-                  type="text"
-                  value={nama}
-                  onChange={(e) => setNama(e.target.value)}
-                  placeholder="Nama lengkap anggota"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-[#003366]"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Nama Peserta
+                  </label>
+                  <input
+                    type="text"
+                    value={nama}
+                    onChange={(e) => setNama(e.target.value)}
+                    placeholder="Nama lengkap anggota"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-[#003366]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Bulan Tagihan (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={bulanTagihan}
+                    onChange={(e) => setBulanTagihan(e.target.value)}
+                    placeholder="Contoh: November 2026"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-[#003366]"
+                  />
+                </div>
               </div>
 
               <div>

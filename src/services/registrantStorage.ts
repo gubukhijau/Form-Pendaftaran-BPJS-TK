@@ -1,4 +1,4 @@
-import { AdminRegistrant, DocumentStatus, PaymentStatus } from '../types';
+import { AdminRegistrant, DocumentStatus, MonthlyIuranRecord, PaymentStatus } from '../types';
 import {
   fetchRegistrantsFromSupabase,
   fetchSingleRegistrantFromSupabase,
@@ -96,7 +96,11 @@ export async function fetchAndSyncRegistrants(): Promise<{
             pekerjaanSampingan: remote.pekerjaanSampingan || local.pekerjaanSampingan,
             email: remote.email || local.email,
             program: remote.program || local.program,
-            statusPembayaran: remote.statusPembayaran || local.statusPembayaran || 'Belum Membayar'
+            statusPembayaran: remote.statusPembayaran || local.statusPembayaran || 'Belum Membayar',
+            monthlyPayments: {
+              ...(local.monthlyPayments || {}),
+              ...(remote.monthlyPayments || {})
+            }
           };
         }
         return remote;
@@ -136,7 +140,11 @@ export async function syncSingleRegistrant(
             pekerjaanSampingan: remote.pekerjaanSampingan || item.pekerjaanSampingan,
             email: remote.email || item.email,
             program: remote.program || item.program,
-            statusPembayaran: remote.statusPembayaran || item.statusPembayaran || 'Belum Membayar'
+            statusPembayaran: remote.statusPembayaran || item.statusPembayaran || 'Belum Membayar',
+            monthlyPayments: {
+              ...(item.monthlyPayments || {}),
+              ...(remote.monthlyPayments || {})
+            }
           };
         }
         return item;
@@ -240,6 +248,37 @@ export function updateRegistrantPaymentStatus(
   // Background sync to server & Supabase
   updateRegistrantInSupabase(id, { statusPembayaran }).catch((err) => {
     console.warn('Background payment status update error:', err);
+  });
+
+  return updated;
+}
+
+export function updateRegistrantMonthlyIuran(
+  id: string,
+  monthKey: string,
+  record: MonthlyIuranRecord
+): AdminRegistrant[] {
+  const current = getLocalRegistrants();
+  let updatedMonthlyPayments: Record<string, MonthlyIuranRecord> = {};
+
+  const updated = current.map((item) => {
+    if (item.id === id) {
+      updatedMonthlyPayments = {
+        ...(item.monthlyPayments || {}),
+        [monthKey]: record
+      };
+      return {
+        ...item,
+        monthlyPayments: updatedMonthlyPayments
+      };
+    }
+    return item;
+  });
+
+  setLocalRegistrants(updated);
+
+  updateRegistrantInSupabase(id, { monthlyPayments: updatedMonthlyPayments }).catch((err) => {
+    console.warn('Background monthly iuran update error:', err);
   });
 
   return updated;
