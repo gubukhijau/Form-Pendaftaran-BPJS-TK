@@ -1,8 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { AdminRegistrant, DocumentStatus, MonthlyPaymentsMap, PaymentStatus, SupabaseConfig } from '../types';
+import { AdminRegistrant, BankAccountItem, DocumentStatus, MonthlyPaymentsMap, PaymentStatus, SupabaseConfig } from '../types';
 
 const SUPABASE_CONFIG_KEY = 'bpjs_bpu_supabase_config';
 export const DEFAULT_TABLE_NAME = 'pendaftar_bpjs_bpu';
+export const DEFAULT_SETTINGS_TABLE_NAME = 'pengaturan_iuran';
 export const DEFAULT_SUPABASE_URL = 'https://bbjsfjrqoebafnojkmva.supabase.co';
 export const DEFAULT_SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJianNmanJxb2ViYWZub2prbXZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0ODg3NDIsImV4cCI6MjEwODA2NDc0Mn0.iDS01sDXKLqgfZ3aGnhe92sqbsT9HaFGc-uVkkVEW2w';
@@ -695,3 +696,119 @@ export async function syncAllLocalToSupabase(
     };
   }
 }
+
+function sanitizeBankAccountsList(raw: unknown): BankAccountItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 20).map((item: any, idx: number) => ({
+    id: typeof item?.id === 'string' && item.id.trim() ? item.id.trim().slice(0, 80) : `rekening-${idx + 1}`,
+    bank: typeof item?.bank === 'string' ? item.bank.trim().slice(0, 80) : '',
+    noRekening: typeof item?.noRekening === 'string' ? item.noRekening.trim().slice(0, 80) : '',
+    atasNama: typeof item?.atasNama === 'string' ? item.atasNama.trim().slice(0, 120) : ''
+  }));
+}
+
+export async function fetchBankAccountsFromDatabase(): Promise<BankAccountItem[] | null> {
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from(DEFAULT_SETTINGS_TABLE_NAME)
+        .select('data')
+        .eq('id', 'bank_accounts')
+        .maybeSingle();
+
+      if (!error && data && Array.isArray(data.data)) {
+        const clean = sanitizeBankAccountsList(data.data);
+        if (clean.length > 0) return clean;
+      }
+    } catch (err) {
+      console.warn('Supabase fetch bank accounts error:', err);
+    }
+  }
+
+  try {
+    const res = await fetch('/api/bank-accounts');
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.success && Array.isArray(json.data) && json.data.length > 0) {
+        return sanitizeBankAccountsList(json.data);
+      }
+    }
+  } catch (err) {
+    console.warn('Server fetch bank accounts error:', err);
+  }
+
+  return null;
+}
+
+export async function saveBankAccountsToDatabase(
+  accounts: BankAccountItem[]
+): Promise<{ success: boolean; syncedToSupabase: boolean; message: string }> {
+  const clean = sanitizeBankAccountsList(accounts);
+  let syncedToSupabase = false;
+  let serverOk = false;
+  let errorDetail = '';
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { error } = await client.from(DEFAULT_SETTINGS_TABLE_NAME).upsert({
+        id: 'bank_accounts',
+        data: clean,
+        updated_at: new Date().toISOString()
+      });
+      if (!error) {
+        syncedToSupabase = true;
+      } else {
+        errorDetail = error.message;
+      }
+    } catch (err: any) {
+      errorDetail = err?.message || '';
+    }
+  }
+
+  try {
+    const res = await fetch('/api/bank-accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accounts: clean })
+    });
+    if (res.ok) {
+      serverOk = true;
+      const json = await res.json();
+      if (json?.syncedToSupabase) {
+        syncedToSupabase = true;
+      }
+      if (!syncedToSupabase && json?.supabaseError && !errorDetail) {
+        errorDetail = json.supabaseError;
+      }
+    }
+  } catch (err) {
+    console.warn('Server save bank accounts error:', err);
+  }
+
+  if (syncedToSupabase) {
+    return {
+      success: true,
+      syncedToSupabase: true,
+      message: 'Data peserta & rekening berhasil disinkronkan ke database Supabase!'
+    };
+  }
+
+  if (serverOk) {
+    return {
+      success: true,
+      syncedToSupabase: false,
+      message: errorDetail
+        ? `Data peserta tersimpan & disinkronkan ke server lokal (Catatan tabel Supabase: ${errorDetail}).`
+        : 'Data peserta & rekening berhasil disimpan dan disinkronkan ke database server.'
+    };
+  }
+
+  return {
+    success: false,
+    syncedToSupabase: false,
+    message: 'Tersimpan di browser lokal. Pastikan koneksi server atau tabel Supabase aktif.'
+  };
+}
+

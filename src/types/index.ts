@@ -42,6 +42,13 @@ export interface SupabaseConfig {
   lastSyncedAt?: string;
 }
 
+export interface BankAccountItem {
+  id: string;
+  bank: string;
+  noRekening: string;
+  atasNama: string;
+}
+
 export interface RegistrationFormData {
   // Data Peserta
   namaLengkap: string;

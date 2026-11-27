@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AdminRegistrant, PROGRAM_DATA } from '../types';
-import { syncSingleRegistrant } from '../services/registrantStorage';
+import { AdminRegistrant, BankAccountItem, PROGRAM_DATA } from '../types';
+import { syncSingleRegistrant, updateRegistrantDetails } from '../services/registrantStorage';
+import {
+  fetchBankAccountsFromDatabase,
+  saveBankAccountsToDatabase
+} from '../services/supabaseService';
 import {
   X,
   MessageCircle,
@@ -17,8 +21,12 @@ import {
   RefreshCw,
   Eye,
   Plus,
-  Trash2
+  Trash2,
+  Database,
+  Loader2
 } from 'lucide-react';
+
+export type { BankAccountItem };
 
 interface Props {
   isOpen: boolean;
@@ -29,13 +37,6 @@ interface Props {
 }
 
 type IuranProgramOption = 'JKK + JKM' | 'JKK + JKM + JHT';
-
-export interface BankAccountItem {
-  id: string;
-  bank: string;
-  noRekening: string;
-  atasNama: string;
-}
 
 const BANK_STORAGE_KEY = 'remako_iuran_bank_info';
 const BANK_ACCOUNTS_STORAGE_KEY = 'remako_iuran_bank_accounts';
@@ -138,8 +139,10 @@ export interface IuranFormValues {
 
 export function buildIuranWhatsAppMessage(values: IuranFormValues): string {
   const namaVal = values.nama.trim() || '....................';
-  const iuranVal = values.iuranBulanan.trim() || '....................';
-  const bulanVal = (values.bulanTagihan || '').trim();
+  const bulanVal = (values.bulanTagihan || '').trim() || '....................';
+  const iuranVal = values.iuranBulanan.trim()
+    ? `Rp ${values.iuranBulanan.trim()}`
+    : 'Rp ....................';
 
   const accounts = values.bankAccounts.length > 0 ? values.bankAccounts : [createEmptyAccount(1)];
   const bankLines: string[] = [];
@@ -165,17 +168,17 @@ export function buildIuranWhatsAppMessage(values: IuranFormValues): string {
 
   const lines = [
     '📢 *PEMBAYARAN IURAN BPJS KETENAGAKERJAAN*',
-    '*REMAKO KALIMATI*',
+    '*AGEN BPJS KALIMATI*',
     '',
     "Assalamu'alaikum Wr. Wb.",
     '',
-    'Kepada seluruh anggota REMAKO yang telah terdaftar sebagai peserta BPJS Ketenagakerjaan, dimohon untuk melakukan pembayaran iuran bulanan dengan informasi berikut:',
+    'Kepada seluruh anggota yang telah terdaftar sebagai peserta BPJS Ketenagakerjaan, dimohon untuk melakukan pembayaran iuran bulanan dengan informasi berikut:',
     '',
     '👤 *DATA PESERTA*',
     `Nama: ${namaVal}`,
-    ...(bulanVal ? [`Bulan Iuran: ${bulanVal}`] : []),
+    `Bulan Iuran: ${bulanVal}`,
     `Program: ${values.program}`,
-    `💰 Iuran Bulanan: Rp ${iuranVal}`,
+    `💰 Iuran Bulanan: ${iuranVal}`,
     '',
     '📌 *PEMBAYARAN IURAN*',
     '',
@@ -186,7 +189,7 @@ export function buildIuranWhatsAppMessage(values: IuranFormValues): string {
     'Terima kasih atas kerja sama dan partisipasinya.',
     '',
     'Salam,',
-    '*Pengurus REMAKO KALIMATI* 🙏'
+    '*Agen BPJS Ketenagakerjaan Kalimati* 🙏'
   ];
 
   return lines.join('\n');
@@ -206,6 +209,11 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
   const [iuranBulanan, setIuranBulanan] = useState('16.800');
   const [bankAccounts, setBankAccounts] = useState<BankAccountItem[]>(() => loadSavedBankAccounts());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSavingDb, setIsSavingDb] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
   const [sentClicked, setSentClicked] = useState(false);
 
@@ -225,25 +233,32 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
         : getDefaultRateString(detectedProgram)
     );
     setBankAccounts(savedAccounts);
+    setSyncFeedback(null);
     setCopied(false);
     setSentClicked(false);
 
-    // Sinkronkan data terbaru dari Supabase agar Program & No HP selalu akurat
+    // Sinkronkan data peserta & rekening terbaru dari database (Supabase / server)
     let active = true;
     setIsSyncing(true);
-    syncSingleRegistrant(registrant.id, registrant.namaLengkap)
-      .then((fresh) => {
-        if (!active || !fresh) return;
-        const freshProgram = detectProgramOption(fresh.program);
-        setNama(fresh.namaLengkap || registrant.namaLengkap || '');
-        setNoHp(fresh.noHp || registrant.noHp || '');
-        setProgram(freshProgram);
-        if (!initialAmount || initialAmount <= 0) {
-          setIuranBulanan(getDefaultRateString(freshProgram));
+    Promise.all([
+      syncSingleRegistrant(registrant.id, registrant.namaLengkap).catch(() => null),
+      fetchBankAccountsFromDatabase().catch(() => null)
+    ])
+      .then(([fresh, remoteAccounts]) => {
+        if (!active) return;
+        if (fresh) {
+          const freshProgram = detectProgramOption(fresh.program);
+          setNama(fresh.namaLengkap || registrant.namaLengkap || '');
+          setNoHp(fresh.noHp || registrant.noHp || '');
+          setProgram(freshProgram);
+          if (!initialAmount || initialAmount <= 0) {
+            setIuranBulanan(getDefaultRateString(freshProgram));
+          }
         }
-      })
-      .catch(() => {
-        // Fallback silently to existing local registrant data
+        if (remoteAccounts && remoteAccounts.length > 0) {
+          setBankAccounts(remoteAccounts);
+          saveBankAccounts(remoteAccounts);
+        }
       })
       .finally(() => {
         if (active) setIsSyncing(false);
@@ -254,7 +269,7 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
     };
   }, [isOpen, registrant?.id, initialBulanTagihan, initialAmount]);
 
-  // Persist bank accounts whenever admin updates them
+  // Persist bank accounts locally whenever admin updates them
   useEffect(() => {
     if (!isOpen) return;
     saveBankAccounts(bankAccounts);
@@ -304,6 +319,40 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
   const whatsappUrl = normalizedWaNumber
     ? `https://wa.me/${normalizedWaNumber}?text=${encodeURIComponent(messageText)}`
     : '';
+
+  const persistAllChangesToDatabase = async (showBanner: boolean) => {
+    if (!registrant) return;
+    if (showBanner) {
+      setIsSavingDb(true);
+      setSyncFeedback(null);
+    }
+
+    try {
+      // 1. Sinkronkan perubahan data peserta (Nama, No HP, Program) ke database peserta
+      const mappedProgram = program === 'JKK + JKM + JHT' ? 'JKK, JKM, dan JHT' : 'JKK & JKM';
+      updateRegistrantDetails(registrant.id, {
+        namaLengkap: nama.trim() || registrant.namaLengkap,
+        noHp: noHp.trim() || registrant.noHp,
+        program: mappedProgram
+      });
+
+      // 2. Sinkronkan daftar rekening transfer ke localStorage, server, & Supabase
+      saveBankAccounts(bankAccounts);
+      const bankSyncRes = await saveBankAccountsToDatabase(bankAccounts);
+
+      if (showBanner) {
+        setSyncFeedback({
+          success: bankSyncRes.success,
+          message: bankSyncRes.message
+        });
+        setTimeout(() => setSyncFeedback(null), 4500);
+      }
+    } finally {
+      if (showBanner) {
+        setIsSavingDb(false);
+      }
+    }
+  };
 
   if (!isOpen || !registrant) return null;
 
@@ -398,7 +447,7 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
 
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Bulan Tagihan (Opsional)
+                    Bulan Iuran
                   </label>
                   <input
                     type="text"
@@ -486,7 +535,7 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
                     <span>📌 Rekening Transfer ({bankAccounts.length})</span>
                   </span>
                   <span className="text-[10px] text-slate-500 block mt-0.5">
-                    Daftar rekening tersimpan otomatis di browser
+                    Tersimpan otomatis & dapat disinkronkan ke database
                   </span>
                 </div>
 
@@ -609,6 +658,20 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
           </div>
         </div>
 
+        {/* Sync Status Banner */}
+        {syncFeedback && (
+          <div
+            className={`mx-5 sm:mx-6 mt-3 p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+              syncFeedback.success
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : 'bg-amber-50 text-amber-800 border-amber-200'
+            }`}
+          >
+            <Database className="w-4 h-4 shrink-0" />
+            <span>{syncFeedback.message}</span>
+          </div>
+        )}
+
         {/* Footer Actions */}
         <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
           <button
@@ -620,6 +683,26 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
           </button>
 
           <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
+            <button
+              type="button"
+              onClick={() => persistAllChangesToDatabase(true)}
+              disabled={isSavingDb}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white border border-sky-300 hover:bg-sky-50 disabled:opacity-60 text-[#003366] text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+              title="Simpan & sinkronkan data peserta dan rekening transfer ke database"
+            >
+              {isSavingDb ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-[#003366]" />
+                  <span>Menyinkronkan...</span>
+                </>
+              ) : (
+                <>
+                  <Database className="w-4 h-4 text-[#007b5e]" />
+                  <span>Sinkronkan Database</span>
+                </>
+              )}
+            </button>
+
             <button
               type="button"
               onClick={handleCopy}
@@ -643,7 +726,10 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => setSentClicked(true)}
+                onClick={() => {
+                  setSentClicked(true);
+                  persistAllChangesToDatabase(false);
+                }}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#25D366] hover:bg-[#1fb857] active:bg-[#199e4a] text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-emerald-600/25 transition-all cursor-pointer"
               >
                 <Send className="w-4 h-4" />

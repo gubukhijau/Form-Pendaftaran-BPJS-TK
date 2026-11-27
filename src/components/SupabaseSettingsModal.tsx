@@ -97,6 +97,19 @@ alter table ${currentTableName} enable row level security;
 drop policy if exists "Akses Publik Pendaftar BPJS" on ${currentTableName};
 create policy "Akses Publik Pendaftar BPJS" on ${currentTableName}
   for all using (true) with check (true);
+
+-- Tabel Pengaturan Iuran & Rekening Transfer WhatsApp:
+create table if not exists pengaturan_iuran (
+  id text primary key,
+  data jsonb not null default '[]'::jsonb,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table pengaturan_iuran enable row level security;
+
+drop policy if exists "Akses Publik Pengaturan Iuran" on pengaturan_iuran;
+create policy "Akses Publik Pengaturan Iuran" on pengaturan_iuran
+  for all using (true) with check (true);
 `;
 
   const handleCopySql = () => {

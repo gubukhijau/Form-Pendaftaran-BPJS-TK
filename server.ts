@@ -409,6 +409,107 @@ app.delete('/api/registrants/:id', async (req, res) => {
   return res.json({ success: true, id });
 });
 
+const BANK_ACCOUNTS_FILE = path.join(process.cwd(), '.bank-accounts.json');
+
+interface SanitizedBankAccount {
+  id: string;
+  bank: string;
+  noRekening: string;
+  atasNama: string;
+}
+
+function sanitizeBankAccounts(raw: unknown): SanitizedBankAccount[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 20).map((item: any, idx: number) => ({
+    id: typeof item?.id === 'string' && item.id.trim() ? item.id.trim().slice(0, 80) : `rekening-${idx + 1}`,
+    bank: typeof item?.bank === 'string' ? item.bank.trim().slice(0, 80) : '',
+    noRekening: typeof item?.noRekening === 'string' ? item.noRekening.trim().slice(0, 80) : '',
+    atasNama: typeof item?.atasNama === 'string' ? item.atasNama.trim().slice(0, 120) : ''
+  }));
+}
+
+function getStoredBankAccounts(): SanitizedBankAccount[] {
+  try {
+    if (fs.existsSync(BANK_ACCOUNTS_FILE)) {
+      const content = fs.readFileSync(BANK_ACCOUNTS_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      return sanitizeBankAccounts(parsed);
+    }
+  } catch (err) {
+    console.warn('Error reading bank accounts file:', err);
+  }
+  return [];
+}
+
+// GET /api/bank-accounts - Retrieve synced bank accounts for WhatsApp billing
+app.get('/api/bank-accounts', async (_req, res) => {
+  const ctx = getSupabaseAdminClient();
+  if (ctx) {
+    try {
+      const { data, error } = await ctx.client
+        .from('pengaturan_iuran')
+        .select('data')
+        .eq('id', 'bank_accounts')
+        .maybeSingle();
+
+      if (!error && data && Array.isArray(data.data)) {
+        const clean = sanitizeBankAccounts(data.data);
+        try {
+          fs.writeFileSync(BANK_ACCOUNTS_FILE, JSON.stringify(clean, null, 2), 'utf-8');
+        } catch {}
+        return res.json({ success: true, source: 'supabase', data: clean });
+      }
+    } catch (err: any) {
+      console.warn('Supabase bank accounts fetch warning:', err.message);
+    }
+  }
+
+  return res.json({ success: true, source: 'local', data: getStoredBankAccounts() });
+});
+
+// POST /api/bank-accounts - Persist and sync bank accounts to local store & Supabase
+app.post('/api/bank-accounts', async (req, res) => {
+  const rawAccounts = req.body?.accounts;
+  if (!Array.isArray(rawAccounts)) {
+    return res.status(400).json({ success: false, error: 'Invalid accounts payload' });
+  }
+
+  const cleanAccounts = sanitizeBankAccounts(rawAccounts);
+
+  try {
+    fs.writeFileSync(BANK_ACCOUNTS_FILE, JSON.stringify(cleanAccounts, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.warn('Error saving bank accounts file:', err.message);
+  }
+
+  let syncedToSupabase = false;
+  let supabaseError = '';
+  const ctx = getSupabaseAdminClient();
+  if (ctx) {
+    try {
+      const { error } = await ctx.client.from('pengaturan_iuran').upsert({
+        id: 'bank_accounts',
+        data: cleanAccounts,
+        updated_at: new Date().toISOString()
+      });
+      if (!error) {
+        syncedToSupabase = true;
+      } else {
+        supabaseError = error.message;
+      }
+    } catch (err: any) {
+      supabaseError = err?.message || 'Gagal menghubungi Supabase';
+    }
+  }
+
+  return res.json({
+    success: true,
+    syncedToSupabase,
+    supabaseError: supabaseError || undefined,
+    data: cleanAccounts
+  });
+});
+
 
 async function start() {
   if (!isProduction) {
