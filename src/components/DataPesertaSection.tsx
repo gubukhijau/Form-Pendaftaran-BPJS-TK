@@ -5,7 +5,8 @@ import {
   updateRegistrantDocumentStatus,
   updateRegistrantPaymentStatus,
   deleteRegistrant,
-  saveRegistrant,
+  saveRegistrantAsync,
+  checkDuplicateNik,
   fetchAndSyncRegistrants
 } from '../services/registrantStorage';
 import {
@@ -120,6 +121,7 @@ export const DataPesertaSection: React.FC<Props> = ({
   const [newProgram, setNewProgram] = useState<'JKK, JKM' | 'JKK, JKM & JHT'>('JKK, JKM');
   const [newDokumen, setNewDokumen] = useState<DocumentStatus>('Belum Terlampir');
   const [formError, setFormError] = useState('');
+  const [isSavingManual, setIsSavingManual] = useState(false);
 
   const loadData = async () => {
     setIsSyncingCloud(true);
@@ -306,48 +308,75 @@ export const DataPesertaSection: React.FC<Props> = ({
     setDeleteConfirmId(null);
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNama.trim() || !newAlamat.trim() || !newNoHp.trim()) {
       setFormError('Nama lengkap, alamat, dan nomor HP wajib diisi.');
       return;
     }
 
-    let resolvedPekerjaan = newPekerjaan.trim();
-    if (resolvedPekerjaan === 'Tukang') {
-      resolvedPekerjaan = newPekerjaanDetail.trim()
-        ? `Tukang (${newPekerjaanDetail.trim()})`
-        : 'Tukang';
-    } else if (resolvedPekerjaan === 'Lain-lain') {
-      resolvedPekerjaan = newPekerjaanDetail.trim() || 'Lain-lain';
+    const cleanNik = newNik.replace(/\D/g, '').trim();
+    if (cleanNik && cleanNik.length !== 16) {
+      setFormError('Nomor KTP (NIK) harus tepat 16 digit angka jika diisi.');
+      return;
     }
 
-    const created = saveRegistrant({
-      namaLengkap: newNama.trim(),
-      alamat: newAlamat.trim(),
-      noHp: newNoHp.trim(),
-      dokumen: newDokumen,
-      statusPembayaran: 'Belum Membayar',
-      namaIbuKandung: newNamaIbuKandung.trim(),
-      nik: newNik.trim(),
-      email: newEmail.trim(),
-      pekerjaan: resolvedPekerjaan,
-      program: newProgram
-    });
-
-    setRegistrants([created, ...registrants]);
-    setNewNama('');
-    setNewNik('');
-    setNewNamaIbuKandung('');
-    setNewAlamat('');
-    setNewNoHp('');
-    setNewEmail('');
-    setNewPekerjaan('');
-    setNewPekerjaanDetail('');
-    setNewProgram('JKK, JKM');
-    setNewDokumen('Belum Terlampir');
+    setIsSavingManual(true);
     setFormError('');
-    setIsAddModalOpen(false);
+
+    try {
+      if (cleanNik) {
+        const isDup = await checkDuplicateNik(cleanNik);
+        if (isDup) {
+          setFormError('NIK ini sudah terdaftar pada peserta lain. Satu NIK tidak dapat didaftarkan lagi.');
+          return;
+        }
+      }
+
+      let resolvedPekerjaan = newPekerjaan.trim();
+      if (resolvedPekerjaan === 'Tukang') {
+        resolvedPekerjaan = newPekerjaanDetail.trim()
+          ? `Tukang (${newPekerjaanDetail.trim()})`
+          : 'Tukang';
+      } else if (resolvedPekerjaan === 'Lain-lain') {
+        resolvedPekerjaan = newPekerjaanDetail.trim() || 'Lain-lain';
+      }
+
+      const created = await saveRegistrantAsync({
+        namaLengkap: newNama.trim(),
+        alamat: newAlamat.trim(),
+        noHp: newNoHp.trim(),
+        dokumen: newDokumen,
+        statusPembayaran: 'Belum Membayar',
+        namaIbuKandung: newNamaIbuKandung.trim(),
+        nik: cleanNik,
+        email: newEmail.trim(),
+        pekerjaan: resolvedPekerjaan,
+        program: newProgram
+      });
+
+      setRegistrants((prev) => [created, ...prev]);
+      setNewNama('');
+      setNewNik('');
+      setNewNamaIbuKandung('');
+      setNewAlamat('');
+      setNewNoHp('');
+      setNewEmail('');
+      setNewPekerjaan('');
+      setNewPekerjaanDetail('');
+      setNewProgram('JKK, JKM');
+      setNewDokumen('Belum Terlampir');
+      setFormError('');
+      setIsAddModalOpen(false);
+    } catch (err: any) {
+      if (err?.message === 'DUPLICATE_NIK') {
+        setFormError('NIK ini sudah terdaftar pada peserta lain. Satu NIK tidak dapat didaftarkan lagi.');
+      } else {
+        setFormError('Gagal menyimpan data pendaftar. Silakan coba lagi.');
+      }
+    } finally {
+      setIsSavingManual(false);
+    }
   };
 
   const filteredRegistrants = useMemo(() => {
@@ -1327,9 +1356,17 @@ export const DataPesertaSection: React.FC<Props> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold bg-[#003366] hover:bg-sky-900 text-white rounded-xl shadow-md transition-colors cursor-pointer"
+                  disabled={isSavingManual}
+                  className="px-5 py-2 text-xs font-bold bg-[#003366] hover:bg-sky-900 disabled:bg-slate-400 text-white rounded-xl shadow-md transition-colors cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  Simpan Pendaftar
+                  {isSavingManual ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Memeriksa & Menyimpan...</span>
+                    </>
+                  ) : (
+                    <span>Simpan Pendaftar</span>
+                  )}
                 </button>
               </div>
             </form>

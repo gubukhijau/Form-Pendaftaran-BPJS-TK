@@ -1,19 +1,23 @@
 import React, { useRef } from 'react';
 import { RegistrationFormData, parseDDMMYYYY, formatDateToDDMMYYYY } from '../types';
-import { User, CreditCard, Home, MapPin, Calendar, Phone, Mail, AlertCircle, CheckCircle2, Heart } from 'lucide-react';
+import { User, CreditCard, Home, MapPin, Calendar, Phone, Mail, AlertCircle, CheckCircle2, Heart, Loader2 } from 'lucide-react';
 
 interface Props {
   formData: RegistrationFormData;
   errors: Record<string, string>;
   onChange: <K extends keyof RegistrationFormData>(field: K, value: RegistrationFormData[K]) => void;
   onClearError: (field: string) => void;
+  isCheckingNik?: boolean;
+  isNikDuplicate?: boolean;
 }
 
 export const PersonalDataFields: React.FC<Props> = ({
   formData,
   errors,
   onChange,
-  onClearError
+  onClearError,
+  isCheckingNik = false,
+  isNikDuplicate = false
 }) => {
   const hiddenDateInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -152,27 +156,45 @@ export const PersonalDataFields: React.FC<Props> = ({
               onChange={handleNikChange}
               placeholder="16 digit angka NIK KTP Anda"
               className={`w-full pl-10 pr-10 py-2.5 sm:py-3 text-sm font-mono tracking-wider bg-white border rounded-xl shadow-xs transition-all focus:outline-none ${
-                errors.nik
+                errors.nik || isNikDuplicate
                   ? 'border-red-400 ring-2 ring-red-100 focus:border-red-500'
-                  : formData.nik.length === 16
+                  : formData.nik.length === 16 && !isCheckingNik
                   ? 'border-emerald-400 ring-1 ring-emerald-200'
                   : 'border-slate-300 focus:border-[#003366] focus:ring-2 focus:ring-[#003366]/10'
               }`}
             />
-            {formData.nik.length === 16 && (
+            {isCheckingNik ? (
+              <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-sky-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </div>
+            ) : (errors.nik || isNikDuplicate) ? (
+              <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-red-500">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+            ) : formData.nik.length === 16 ? (
               <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-emerald-500">
                 <CheckCircle2 className="w-4 h-4" />
               </div>
-            )}
+            ) : null}
           </div>
-          {errors.nik ? (
-            <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+          {isCheckingNik ? (
+            <p className="mt-1 text-xs text-sky-700 flex items-center gap-1 font-medium">
+              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              Memeriksa ketersediaan NIK di database...
+            </p>
+          ) : errors.nik ? (
+            <p className="mt-1 text-xs text-red-600 flex items-center gap-1 font-semibold">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               {errors.nik}
             </p>
+          ) : isNikDuplicate ? (
+            <p className="mt-1 text-xs text-red-600 flex items-center gap-1 font-semibold">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              NIK ini sudah terdaftar sebagai peserta. Satu NIK tidak dapat didaftarkan lagi.
+            </p>
           ) : (
             <p className="mt-1 text-[11px] text-slate-500">
-              Pastikan NIK terdiri dari tepat 16 digit angka sesuai yang tertera pada e-KTP.
+              Pastikan NIK terdiri dari tepat 16 digit angka sesuai e-KTP. Satu NIK hanya dapat mendaftar satu kali.
             </p>
           )}
         </div>

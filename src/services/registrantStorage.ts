@@ -5,6 +5,7 @@ import {
   insertRegistrantToSupabase,
   updateRegistrantInSupabase,
   deleteRegistrantFromSupabase,
+  checkNikRegisteredInDatabase,
   getSupabaseConfig
 } from './supabaseService';
 
@@ -163,9 +164,36 @@ export async function syncSingleRegistrant(
   return null;
 }
 
+export function isNikRegisteredLocally(nik: string, excludeId?: string): boolean {
+  const cleanNik = String(nik || '').replace(/\D/g, '').trim();
+  if (!cleanNik) return false;
+  return getLocalRegistrants().some((item) => {
+    if (excludeId && item.id === excludeId) return false;
+    const itemNik = String(item.nik || '').replace(/\D/g, '').trim();
+    return Boolean(itemNik && itemNik === cleanNik);
+  });
+}
+
+export async function checkDuplicateNik(nik: string, excludeId?: string): Promise<boolean> {
+  const cleanNik = String(nik || '').replace(/\D/g, '').trim();
+  if (!cleanNik) return false;
+  if (isNikRegisteredLocally(cleanNik, excludeId)) {
+    return true;
+  }
+  return checkNikRegisteredInDatabase(cleanNik, excludeId);
+}
+
 export async function saveRegistrantAsync(
   data: Omit<AdminRegistrant, 'id' | 'createdAt'>
 ): Promise<AdminRegistrant> {
+  const cleanNik = String(data.nik || '').replace(/\D/g, '').trim();
+  if (cleanNik) {
+    const isDuplicate = await checkDuplicateNik(cleanNik);
+    if (isDuplicate) {
+      throw new Error('DUPLICATE_NIK');
+    }
+  }
+
   const current = getLocalRegistrants();
   const randomSuffix = Math.floor(100000 + Math.random() * 900000);
   const newEntry: AdminRegistrant = {
@@ -174,19 +202,23 @@ export async function saveRegistrantAsync(
     namaLengkap: data.namaLengkap.trim(),
     alamat: data.alamat.trim(),
     noHp: data.noHp.trim(),
+    nik: cleanNik || data.nik?.trim() || '',
     dokumen: data.dokumen || 'Belum Terlampir',
     createdAt: new Date().toISOString()
   };
 
-  const updated = [newEntry, ...current];
-  setLocalRegistrants(updated);
-
-  // Save directly to Supabase
+  // Save directly to server & Supabase first so server 409 duplicate check is respected
   try {
     await insertRegistrantToSupabase(newEntry);
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.message === 'DUPLICATE_NIK') {
+      throw err;
+    }
     console.warn('Direct Supabase insert error:', err);
   }
+
+  const updated = [newEntry, ...current];
+  setLocalRegistrants(updated);
 
   return newEntry;
 }

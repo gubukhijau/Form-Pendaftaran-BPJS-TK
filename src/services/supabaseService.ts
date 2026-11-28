@@ -455,17 +455,76 @@ export async function fetchSingleRegistrantFromSupabase(
   return null;
 }
 
+export async function checkNikRegisteredInDatabase(
+  nik: string,
+  excludeId?: string
+): Promise<boolean> {
+  const cleanNik = String(nik || '').replace(/\D/g, '').trim();
+  if (!cleanNik) return false;
+
+  // 1. Check server endpoint (covers server store + server Supabase client)
+  try {
+    const query = excludeId ? `?excludeId=${encodeURIComponent(excludeId)}` : '';
+    const res = await fetch(`/api/check-nik/${encodeURIComponent(cleanNik)}${query}`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.exists === true) {
+        return true;
+      }
+    }
+  } catch (err) {
+    console.warn('Server NIK check error:', err);
+  }
+
+  // 2. Also check direct Supabase client if configured
+  let client = getSupabaseClient();
+  if (!client) {
+    await syncSupabaseConfigFromServer();
+    client = getSupabaseClient();
+  }
+
+  if (client) {
+    const config = getSupabaseConfig();
+    const targetTable = config.tableName || DEFAULT_TABLE_NAME;
+    try {
+      const { data, error } = await client
+        .from(targetTable)
+        .select('id, nik')
+        .eq('nik', cleanNik)
+        .limit(5);
+
+      if (!error && Array.isArray(data)) {
+        const exists = data.some((row: any) => !excludeId || String(row.id) !== excludeId);
+        if (exists) return true;
+      }
+    } catch (err) {
+      console.warn('Direct Supabase NIK check error:', err);
+    }
+  }
+
+  return false;
+}
+
 export async function insertRegistrantToSupabase(
   entry: AdminRegistrant
 ): Promise<boolean> {
-  // Always send to server API to ensure full fields (NIK, tempat/tanggal lahir, dll) persist
+  // Always send to server API to ensure validation (incl. duplicate NIK) and full fields persist
   try {
-    fetch('/api/registrants', {
+    const resp = await fetch('/api/registrants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(entry)
-    }).catch((err) => console.warn('Server API POST error:', err));
-  } catch {}
+    });
+    if (resp.status === 409) {
+      const errJson = await resp.json().catch(() => ({}));
+      throw new Error(errJson?.code || 'DUPLICATE_NIK');
+    }
+  } catch (err: any) {
+    if (err?.message === 'DUPLICATE_NIK') {
+      throw err;
+    }
+    console.warn('Server API POST error:', err);
+  }
 
   const client = getSupabaseClient();
   const config = getSupabaseConfig();

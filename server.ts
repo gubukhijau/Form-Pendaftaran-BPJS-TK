@@ -161,6 +161,56 @@ function mapRegistrantRow(row: any, detail: any = {}) {
   };
 }
 
+function normalizeNik(value: unknown): string {
+  return String(value || '').replace(/\D/g, '').trim();
+}
+
+async function findExistingRegistrantByNik(cleanNik: string, excludeId?: string): Promise<boolean> {
+  if (!cleanNik) return false;
+
+  // 1. Check local server store
+  const detailsMap = getStoredRegistrantDetails();
+  for (const [entryId, entry] of Object.entries(detailsMap)) {
+    if (excludeId && entryId === excludeId) continue;
+    const storedNik = normalizeNik(entry?.nik || entry?.no_ktp || entry?.ktp);
+    if (storedNik && storedNik === cleanNik) {
+      return true;
+    }
+  }
+
+  // 2. Check Supabase table
+  const ctx = getSupabaseAdminClient();
+  if (ctx) {
+    try {
+      const { data, error } = await ctx.client
+        .from(ctx.table)
+        .select('id, nik')
+        .eq('nik', cleanNik)
+        .limit(5);
+
+      if (!error && Array.isArray(data)) {
+        const match = data.some((row: any) => !excludeId || String(row.id) !== excludeId);
+        if (match) return true;
+      }
+    } catch (err: any) {
+      console.warn('Supabase duplicate NIK check warning:', err.message);
+    }
+  }
+
+  return false;
+}
+
+// GET /api/check-nik/:nik - Check whether a NIK is already registered without leaking PII
+app.get('/api/check-nik/:nik', async (req, res) => {
+  const cleanNik = normalizeNik(req.params.nik);
+  const excludeId = typeof req.query.excludeId === 'string' ? req.query.excludeId.trim() : undefined;
+  if (!cleanNik) {
+    return res.json({ success: true, exists: false });
+  }
+  const exists = await findExistingRegistrantByNik(cleanNik, excludeId);
+  return res.json({ success: true, exists });
+});
+
 // GET /api/registrants - Returns list of registrants with full details
 app.get('/api/registrants', async (_req, res) => {
   const detailsMap = getStoredRegistrantDetails();
@@ -266,6 +316,19 @@ app.post('/api/registrants', async (req, res) => {
   }
 
   const targetId = id || `REG-${Date.now().toString().slice(-6)}`;
+  const cleanNik = normalizeNik(nik);
+
+  if (cleanNik) {
+    const isDuplicate = await findExistingRegistrantByNik(cleanNik, targetId);
+    if (isDuplicate) {
+      return res.status(409).json({
+        success: false,
+        code: 'DUPLICATE_NIK',
+        error: 'NIK ini sudah terdaftar sebagai peserta. Satu NIK tidak dapat didaftarkan lagi.'
+      });
+    }
+  }
+
   const cleanDetail = {
     id: targetId,
     namaLengkap: String(namaLengkap).trim(),
@@ -275,7 +338,7 @@ app.post('/api/registrants', async (req, res) => {
     statusPembayaran: statusPembayaran === 'Sudah Membayar' ? 'Sudah Membayar' : 'Belum Membayar',
     monthlyPayments: monthlyPayments && typeof monthlyPayments === 'object' ? monthlyPayments : {},
     createdAt: createdAt || new Date().toISOString(),
-    nik: (nik || '').trim(),
+    nik: cleanNik,
     tempatLahir: (tempatLahir || '').trim(),
     tanggalLahir: (tanggalLahir || '').trim(),
     namaIbuKandung: (namaIbuKandung || '').trim(),
@@ -338,6 +401,20 @@ app.post('/api/registrants', async (req, res) => {
 app.patch('/api/registrants/:id', async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
+
+  if (updates && updates.nik !== undefined) {
+    const cleanNik = normalizeNik(updates.nik);
+    if (cleanNik) {
+      const isDuplicate = await findExistingRegistrantByNik(cleanNik, id);
+      if (isDuplicate) {
+        return res.status(409).json({
+          success: false,
+          code: 'DUPLICATE_NIK',
+          error: 'NIK ini sudah terdaftar pada peserta lain.'
+        });
+      }
+    }
+  }
 
   // Persist update in server store
   const saved = upsertStoredRegistrantDetail(id, updates);

@@ -16,7 +16,11 @@ import { PrivacyNotice } from './components/PrivacyNotice';
 import { FaqSection } from './components/FaqSection';
 import { DataPesertaSection } from './components/DataPesertaSection';
 import { DataIuranSection } from './components/DataIuranSection';
-import { saveRegistrant, saveRegistrantAsync } from './services/registrantStorage';
+import {
+  saveRegistrantAsync,
+  checkDuplicateNik,
+  isNikRegisteredLocally
+} from './services/registrantStorage';
 import { syncSupabaseConfigFromServer, getCurrentSupabaseSession, signOutSupabaseAuth } from './services/supabaseService';
 import { RegistrationFormData, WA_TARGET_NUMBER, WA_TARGET_DISPLAY, WA_TARGET_INTERNATIONAL, parseDDMMYYYY } from './types';
 import {
@@ -67,9 +71,44 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [isCheckingNik, setIsCheckingNik] = useState(false);
+  const [isNikDuplicate, setIsNikDuplicate] = useState(false);
 
   const formRef = useRef<HTMLDivElement>(null);
   const personalDataRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const cleanNik = formData.nik.replace(/\D/g, '').trim();
+    if (cleanNik.length !== 16) {
+      setIsCheckingNik(false);
+      setIsNikDuplicate(false);
+      return;
+    }
+
+    let active = true;
+    setIsCheckingNik(true);
+    checkDuplicateNik(cleanNik)
+      .then((exists) => {
+        if (!active) return;
+        setIsNikDuplicate(exists);
+        if (exists) {
+          setErrors((prev) => ({
+            ...prev,
+            nik: 'NIK ini sudah terdaftar sebagai peserta. Satu NIK tidak dapat didaftarkan lagi.'
+          }));
+        }
+      })
+      .catch(() => {
+        if (active) setIsNikDuplicate(false);
+      })
+      .finally(() => {
+        if (active) setIsCheckingNik(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [formData.nik]);
 
   useEffect(() => {
     syncSupabaseConfigFromServer();
@@ -131,11 +170,14 @@ export default function App() {
       newErrors.namaLengkap = 'Nama lengkap minimal 3 karakter.';
     }
 
-    // 2. NIK (16 digit)
-    if (!formData.nik.trim()) {
+    // 2. NIK (16 digit & belum terdaftar)
+    const cleanNik = formData.nik.trim();
+    if (!cleanNik) {
       newErrors.nik = 'Nomor NIK KTP wajib diisi.';
-    } else if (!/^\d{16}$/.test(formData.nik.trim())) {
-      newErrors.nik = `Nomor NIK harus tepat 16 digit angka (saat ini ${formData.nik.trim().length} digit).`;
+    } else if (!/^\d{16}$/.test(cleanNik)) {
+      newErrors.nik = `Nomor NIK harus tepat 16 digit angka (saat ini ${cleanNik.length} digit).`;
+    } else if (isNikRegisteredLocally(cleanNik) || isNikDuplicate) {
+      newErrors.nik = 'NIK ini sudah terdaftar sebagai peserta. Satu NIK tidak dapat didaftarkan lagi.';
     }
 
     // 3. Alamat Rumah
@@ -239,65 +281,98 @@ export default function App() {
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const isValid = validateForm();
     if (!isValid) return;
 
     setIsSubmitting(true);
 
-    // 1. Direct LANGSUNG ke WhatsApp ke nomor 085743678786 (buka segera agar tidak diblokir popup blocker)
-    const message = buildWhatsAppMessage(formData);
-    const whatsappUrl = `https://wa.me/${WA_TARGET_INTERNATIONAL}?text=${encodeURIComponent(message)}`;
-
     try {
-      const waWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-      if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
-        const link = document.createElement('a');
-        link.href = whatsappUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      // 1. Pastikan NIK belum terdaftar di server / database Supabase
+      const cleanNik = formData.nik.trim();
+      const existsInDb = await checkDuplicateNik(cleanNik);
+      if (existsInDb) {
+        setIsNikDuplicate(true);
+        setErrors((prev) => ({
+          ...prev,
+          nik: 'NIK ini sudah terdaftar sebagai peserta. Satu NIK tidak dapat didaftarkan lagi.'
+        }));
+        setGeneralError('Pendaftaran ditolak: NIK yang Anda masukkan sudah terdaftar sebelumnya.');
+        setTimeout(() => {
+          if (personalDataRef.current) {
+            personalDataRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 80);
+        return;
       }
-    } catch (err) {
-      console.warn('Direct WA open fallback:', err);
-    }
 
-    // 2. Simpan LANGSUNG ke database data peserta dengan status dokumen 'Belum Terlampir'
-    let jobString = formData.pekerjaan || '';
-    if (formData.pekerjaan === 'Tukang') {
-      jobString = `Tukang (${formData.detailPekerjaanTukang || 'Tukang'})`;
-    } else if (formData.pekerjaan === 'Lain-lain') {
-      jobString = formData.detailPekerjaanLain || 'Lain-lain';
-    }
+      // 2. Simpan LANGSUNG ke database data peserta dengan status dokumen 'Belum Terlampir'
+      let jobString = formData.pekerjaan || '';
+      if (formData.pekerjaan === 'Tukang') {
+        jobString = `Tukang (${formData.detailPekerjaanTukang || 'Tukang'})`;
+      } else if (formData.pekerjaan === 'Lain-lain') {
+        jobString = formData.detailPekerjaanLain || 'Lain-lain';
+      }
 
-    const fullEntryData = {
-      namaLengkap: formData.namaLengkap.trim(),
-      alamat: formData.alamatRumah.trim(),
-      noHp: formData.nomorHp.trim(),
-      dokumen: 'Belum Terlampir' as const,
-      nik: formData.nik.trim(),
-      tempatLahir: formData.tempatLahir.trim(),
-      tanggalLahir: formData.tanggalLahir.trim(),
-      namaIbuKandung: formData.namaIbuKandung.trim(),
-      pekerjaan: jobString,
-      email: formData.email.trim(),
-      program: formData.program === 'JKK_JKM' ? 'JKK & JKM' : formData.program === 'JKK_JKM_JHT' ? 'JKK, JKM, dan JHT' : formData.program,
-      periodePembayaran: formData.periodePembayaran
-    };
+      const fullEntryData = {
+        namaLengkap: formData.namaLengkap.trim(),
+        alamat: formData.alamatRumah.trim(),
+        noHp: formData.nomorHp.trim(),
+        dokumen: 'Belum Terlampir' as const,
+        nik: cleanNik,
+        tempatLahir: formData.tempatLahir.trim(),
+        tanggalLahir: formData.tanggalLahir.trim(),
+        namaIbuKandung: formData.namaIbuKandung.trim(),
+        pekerjaan: jobString,
+        email: formData.email.trim(),
+        program: formData.program === 'JKK_JKM' ? 'JKK & JKM' : formData.program === 'JKK_JKM_JHT' ? 'JKK, JKM, dan JHT' : formData.program,
+        periodePembayaran: formData.periodePembayaran
+      };
 
-    saveRegistrantAsync(fullEntryData)
-      .catch((err) => {
+      await saveRegistrantAsync(fullEntryData);
+
+      // 3. Direct LANGSUNG ke WhatsApp ke nomor 085743678786 setelah lolos cek NIK
+      const message = buildWhatsAppMessage(formData);
+      const whatsappUrl = `https://wa.me/${WA_TARGET_INTERNATIONAL}?text=${encodeURIComponent(message)}`;
+
+      try {
+        const waWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+        if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
+          const link = document.createElement('a');
+          link.href = whatsappUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } catch (err) {
+        console.warn('Direct WA open fallback:', err);
+      }
+
+      // 4. Tampilkan modal konfirmasi sukses & panduan kirim dokumen di WhatsApp
+      setIsModalOpen(true);
+    } catch (err: any) {
+      if (err?.message === 'DUPLICATE_NIK') {
+        setIsNikDuplicate(true);
+        setErrors((prev) => ({
+          ...prev,
+          nik: 'NIK ini sudah terdaftar sebagai peserta. Satu NIK tidak dapat didaftarkan lagi.'
+        }));
+        setGeneralError('Pendaftaran ditolak: NIK yang Anda masukkan sudah terdaftar sebelumnya.');
+        setTimeout(() => {
+          if (personalDataRef.current) {
+            personalDataRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 80);
+      } else {
         console.error('Error saat menyimpan pendaftaran ke database:', err);
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
-
-    // 3. Tampilkan modal konfirmasi sukses & panduan kirim dokumen di WhatsApp
-    setIsModalOpen(true);
+        setGeneralError('Terjadi kendala saat menyimpan pendaftaran. Silakan coba lagi.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEditSection = () => {
@@ -444,6 +519,8 @@ export default function App() {
                     errors={errors}
                     onChange={handleFieldChange}
                     onClearError={handleClearError}
+                    isCheckingNik={isCheckingNik}
+                    isNikDuplicate={isNikDuplicate}
                   />
                 </div>
 
@@ -487,9 +564,18 @@ export default function App() {
 
                 {/* Submit Action Area */}
                 <div className="pt-4 border-t border-slate-100 flex flex-col items-center gap-3">
+                  {isNikDuplicate && (
+                    <div className="w-full max-w-xl p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5 text-xs text-red-700">
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <span>
+                        <strong>NIK sudah terdaftar:</strong> Nomor NIK yang Anda masukkan sudah tercatat sebagai peserta, sehingga tidak dapat melakukan pendaftaran ulang.
+                      </span>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isCheckingNik}
                     className="w-full sm:w-auto min-w-[280px] inline-flex items-center justify-center gap-3 px-8 py-4 bg-[#25D366] hover:bg-[#1ebc57] active:bg-[#189b47] disabled:bg-slate-300 text-white font-extrabold text-base sm:text-lg rounded-2xl shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/35 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
                     {isSubmitting ? (
