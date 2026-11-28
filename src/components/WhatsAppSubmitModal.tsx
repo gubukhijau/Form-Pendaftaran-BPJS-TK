@@ -58,7 +58,7 @@ Pekerjaan: ${jobText}
 
 PROGRAM
 Program yang dipilih: ${currentProgram?.title || '-'}
-Tarif bulanan: ${formatRupiah(monthlyRate)}
+Tarif bulanan: ${formatRupiah(monthlyRate)} (sudah termasuk admin)
 Periode pembayaran: ${formData.periodePembayaran} Bulan
 Estimasi total iuran: ${formatRupiah(totalIuran)}
 

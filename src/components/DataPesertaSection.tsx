@@ -1299,7 +1299,7 @@ export const DataPesertaSection: React.FC<Props> = ({
                         1. JKK, JKM
                       </span>
                       <span className="block text-[11px] font-semibold text-[#007b5e] mt-0.5">
-                        Rp 16.800 / bulan
+                        Rp 20.000 / bulan (incl. admin)
                       </span>
                     </div>
                   </label>
@@ -1324,7 +1324,7 @@ export const DataPesertaSection: React.FC<Props> = ({
                         2. JKK, JKM & JHT
                       </span>
                       <span className="block text-[11px] font-semibold text-[#003366] mt-0.5">
-                        Rp 36.800 / bulan
+                        Rp 40.000 / bulan (incl. admin)
                       </span>
                     </div>
                   </label>

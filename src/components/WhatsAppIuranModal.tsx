@@ -206,7 +206,7 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
   const [noHp, setNoHp] = useState('');
   const [bulanTagihan, setBulanTagihan] = useState('');
   const [program, setProgram] = useState<IuranProgramOption>('JKK + JKM');
-  const [iuranBulanan, setIuranBulanan] = useState('16.800');
+  const [iuranBulanan, setIuranBulanan] = useState('20.000');
   const [bankAccounts, setBankAccounts] = useState<BankAccountItem[]>(() => loadSavedBankAccounts());
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
@@ -480,7 +480,7 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
                         program === 'JKK + JKM' ? 'text-emerald-200' : 'text-slate-500'
                       }`}
                     >
-                      Standar Rp 16.800 / bln
+                      Rp 20.000 / bln (incl. admin)
                     </div>
                   </button>
 
@@ -499,7 +499,7 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
                         program === 'JKK + JKM + JHT' ? 'text-emerald-200' : 'text-slate-500'
                       }`}
                     >
-                      Standar Rp 36.800 / bln
+                      Rp 40.000 / bln (incl. admin)
                     </div>
                   </button>
                 </div>
@@ -519,7 +519,7 @@ export const WhatsAppIuranModal: React.FC<Props> = ({
                     inputMode="numeric"
                     value={iuranBulanan}
                     onChange={(e) => setIuranBulanan(formatRibuan(e.target.value))}
-                    placeholder="16.800"
+                    placeholder="20.000"
                     className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-[#003366]"
                   />
                 </div>

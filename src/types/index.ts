@@ -87,7 +87,7 @@ export const PROGRAM_DATA: Record<ProgramType, ProgramDetail> = {
   JKK_JKM: {
     id: 'JKK_JKM',
     title: 'JKK dan JKM',
-    monthlyRate: 16800,
+    monthlyRate: 20000,
     badge: 'Paling Populer',
     description: 'Jaminan Kecelakaan Kerja (JKK) & Jaminan Kematian (JKM)',
     benefits: [
@@ -101,7 +101,7 @@ export const PROGRAM_DATA: Record<ProgramType, ProgramDetail> = {
   JKK_JKM_JHT: {
     id: 'JKK_JKM_JHT',
     title: 'JKK, JKM, dan JHT',
-    monthlyRate: 36800,
+    monthlyRate: 40000,
     badge: 'Perlindungan Lengkap + Tabungan',
     description: 'Jaminan Kecelakaan Kerja (JKK), Jaminan Kematian (JKM), & Jaminan Hari Tua (JHT)',
     benefits: [

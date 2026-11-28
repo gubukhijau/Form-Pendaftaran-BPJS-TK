@@ -17,9 +17,9 @@ export const PaymentPeriodSelector: React.FC<Props> = ({
 }) => {
   const periods: PaymentPeriod[] = [1, 2, 3, 6, 12];
 
-  // Selected program rate, default to 16,800 if not yet chosen so user can see calculation preview
+  // Selected program rate, default to 20,000 if not yet chosen so user can see calculation preview
   const currentProgram = formData.program ? PROGRAM_DATA[formData.program] : null;
-  const monthlyRate = currentProgram ? currentProgram.monthlyRate : 16800;
+  const monthlyRate = currentProgram ? currentProgram.monthlyRate : PROGRAM_DATA.JKK_JKM.monthlyRate;
 
   const handleSelectPeriod = (p: PaymentPeriod) => {
     onChange('periodePembayaran', p);
@@ -143,7 +143,7 @@ export const PaymentPeriodSelector: React.FC<Props> = ({
               {formData.periodePembayaran ? formatRupiah(selectedTotal) : 'Rp0'}
             </span>
             <span className="text-[10px] text-slate-300 block">
-              *Tepat sesuai tarif resmi program
+              *Sudah termasuk biaya admin
             </span>
           </div>
         </div>

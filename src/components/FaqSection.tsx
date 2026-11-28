@@ -11,7 +11,7 @@ export const FaqSection: React.FC = () => {
     },
     {
       q: 'Apa perbedaan antara Program JKK + JKM dengan JKK + JKM + JHT?',
-      a: 'Program JKK + JKM (Rp16.800/bulan) memberikan perlindungan asuransi terhadap risiko kecelakaan kerja dan santunan kematian. Program JKK + JKM + JHT (Rp36.800/bulan) mencakup perlindungan kecelakaan kerja, kematian, plus tabungan Jaminan Hari Tua (JHT) yang dapat dicairkan di masa mendatang dengan imbal hasil investasi.'
+      a: 'Program JKK + JKM (Rp20.000/bulan, sudah termasuk biaya admin) memberikan perlindungan asuransi terhadap risiko kecelakaan kerja dan santunan kematian. Program JKK + JKM + JHT (Rp40.000/bulan, sudah termasuk biaya admin) mencakup perlindungan kecelakaan kerja, kematian, plus tabungan Jaminan Hari Tua (JHT) yang dapat dicairkan di masa mendatang dengan imbal hasil investasi.'
     },
     {
       q: 'Bagaimana cara mengirimkan dokumen persyaratan (Foto KTP Asli, Foto KK Asli, dan Foto Diri/Selfie)?',

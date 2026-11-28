@@ -137,7 +137,7 @@ export const RegistrationSummary: React.FC<Props> = ({
           </span>
           {currentProgram && (
             <span className="text-[11px] text-slate-500 block mt-0.5">
-              Tarif {formatRupiah(currentProgram.monthlyRate)}/bulan
+              Tarif {formatRupiah(currentProgram.monthlyRate)}/bulan (sudah termasuk admin)
             </span>
           )}
         </div>

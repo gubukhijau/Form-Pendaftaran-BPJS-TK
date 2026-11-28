@@ -143,7 +143,7 @@ export const DataIuranSection: React.FC<Props> = ({
   });
 
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
-  const [amountInput, setAmountInput] = useState<string>('16.800');
+  const [amountInput, setAmountInput] = useState<string>('20.000');
   const [paidDateInput, setPaidDateInput] = useState<string>(() => getTodayYMD());
   const [noteInput, setNoteInput] = useState<string>('');
   const [saveMessage, setSaveMessage] = useState<string>('');
@@ -629,17 +629,17 @@ export const DataIuranSection: React.FC<Props> = ({
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setAmountInput('16.800')}
+                    onClick={() => setAmountInput('20.000')}
                     className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer border border-slate-200"
                   >
-                    Rp 16.800
+                    Rp 20.000
                   </button>
                   <button
                     type="button"
-                    onClick={() => setAmountInput('36.800')}
+                    onClick={() => setAmountInput('40.000')}
                     className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer border border-slate-200"
                   >
-                    Rp 36.800
+                    Rp 40.000
                   </button>
                 </div>
               </div>
@@ -652,7 +652,7 @@ export const DataIuranSection: React.FC<Props> = ({
                   inputMode="numeric"
                   value={amountInput}
                   onChange={(e) => setAmountInput(formatRibuanInput(e.target.value))}
-                  placeholder="16.800"
+                  placeholder="20.000"
                   className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono font-extrabold text-slate-900 focus:bg-white focus:outline-none focus:border-[#003366]"
                 />
               </div>

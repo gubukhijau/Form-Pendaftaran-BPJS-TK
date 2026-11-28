@@ -86,6 +86,9 @@ export const ProgramSelector: React.FC<Props> = ({
                   </span>
                   <span className="text-xs text-slate-500 font-medium">/ bulan</span>
                 </div>
+                <span className="text-[11px] font-bold text-emerald-700 block mt-0.5">
+                  ✓ Sudah termasuk admin
+                </span>
               </div>
 
               {/* Description & Benefits */}
@@ -158,6 +161,9 @@ export const ProgramSelector: React.FC<Props> = ({
                   </span>
                   <span className="text-xs text-slate-500 font-medium">/ bulan</span>
                 </div>
+                <span className="text-[11px] font-bold text-[#003366] block mt-0.5">
+                  ✓ Sudah termasuk admin
+                </span>
               </div>
 
               {/* Description & Benefits */}
@@ -195,7 +201,7 @@ export const ProgramSelector: React.FC<Props> = ({
       <div className="flex items-start gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-500 text-xs leading-relaxed">
         <HelpCircle className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
         <p>
-          <span className="font-semibold text-slate-700">Catatan:</span> Nominal iuran pada halaman ini mengikuti data formulir referensi dan perlu dikonfirmasi kembali sebelum digunakan sebagai informasi resmi.
+          <span className="font-semibold text-slate-700">Catatan:</span> Nominal iuran bulanan di atas (Rp20.000 untuk Pilihan A dan Rp40.000 untuk Pilihan B) sudah termasuk biaya admin layanan.
         </p>
       </div>
     </div>
